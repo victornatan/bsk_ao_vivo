@@ -1,0 +1,2822 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>🏀 Sistema de Análise - Basquete</title>
+    <!-- SQL.js para ler SQLite no navegador -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f1923;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #loginContainer {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+        .login-card {
+            background: #1a2a3a;
+            border-radius: 16px;
+            padding: 40px 35px;
+            border: 1px solid #2c4055;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        }
+        .login-card .logo { text-align: center; font-size: 48px; margin-bottom: 5px; }
+        .login-card h2 { text-align: center; color: #3498db; font-size: 22px; margin-bottom: 5px; }
+        .login-card .subtitle { text-align: center; color: #8aa8c7; font-size: 13px; margin-bottom: 25px; }
+        .login-card .form-group { margin-bottom: 18px; }
+        .login-card label { display: block; color: #8aa8c7; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+        .login-card input {
+            width: 100%; padding: 12px 15px; background: #0f1923;
+            border: 2px solid #2c4055; border-radius: 8px; color: #ffffff; font-size: 15px;
+            transition: border 0.3s ease;
+        }
+        .login-card input:focus { outline: none; border-color: #3498db; }
+        .login-card input::placeholder { color: #4a6a8a; }
+        .login-card .btn-login {
+            width: 100%; padding: 14px; background: #3498db; border: none;
+            border-radius: 8px; color: #fff; font-size: 16px; font-weight: 700;
+            cursor: pointer; transition: background 0.3s ease, transform 0.2s; margin-top: 8px;
+        }
+        .login-card .btn-login:hover { background: #2980b9; transform: translateY(-2px); }
+        .login-card .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .login-card .error-msg { color: #e74c3c; font-size: 13px; text-align: center; margin-top: 12px; min-height: 20px; }
+        .login-card .loading-msg { color: #f39c12; font-size: 13px; text-align: center; margin-top: 8px; min-height: 20px; }
+        .login-card .footer { text-align: center; color: #4a6a8a; font-size: 11px; margin-top: 20px; }
+        #appContainer {
+            display: none;
+            width: 100%;
+            max-width: 1400px;
+            padding: 20px;
+            margin: 0 auto;
+        }
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 25px;
+            background: #1a2a3a;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            border: 1px solid #2c4055;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .app-header h1 { font-size: 22px; color: #3498db; display: flex; align-items: center; gap: 10px; }
+        .app-header h1 span { color: #f39c12; }
+        .app-header .user-area { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+        .app-header .user-area .user-name { color: #8aa8c7; font-size: 14px; }
+        .app-header .user-area .user-name strong { color: #fff; }
+        .app-header .user-area .session-timer {
+            background: #0f1923; padding: 5px 16px; border-radius: 20px;
+            border: 1px solid #2c4055; font-size: 13px; color: #f39c12;
+        }
+        .app-header .user-area .btn-logout {
+            background: transparent; border: 1px solid #e74c3c; color: #e74c3c;
+            padding: 6px 18px; border-radius: 6px; cursor: pointer;
+            font-weight: 600; font-size: 13px; transition: all 0.3s ease;
+        }
+        .app-header .user-area .btn-logout:hover { background: #e74c3c; color: #fff; }
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #1a2a3a;
+            padding-bottom: 5px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 12px 28px;
+            background: transparent;
+            border: none;
+            color: #6a8ba8;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tab-btn:hover { color: #ffffff; background: #1a2a3a; }
+        .tab-btn.active { color: #ffffff; background: #1a2a3a; border-bottom: 3px solid #3498db; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card {
+            background: #1a2a3a;
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid #2c4055;
+            margin-bottom: 20px;
+        }
+        .card h2 { color: #3498db; font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .card label { display: block; color: #8aa8c7; font-size: 13px; margin-bottom: 5px; font-weight: 600; }
+        .card textarea, .card input[type="text"] {
+            width: 100%;
+            background: #0f1923;
+            border: 2px solid #2c4055;
+            border-radius: 8px;
+            color: #ffffff;
+            padding: 12px 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            transition: border 0.3s ease;
+        }
+        .card textarea { min-height: 200px; resize: vertical; }
+        .card textarea:focus, .card input[type="text"]:focus { outline: none; border-color: #3498db; }
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        .btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+        .btn-nba { background: #e74c3c; color: #fff; }
+        .btn-nba:hover { background: #c0392b; }
+        .btn-geral { background: #2ecc71; color: #fff; }
+        .btn-geral:hover { background: #27ae60; }
+        .btn-buscar { background: #9b59b6; color: #fff; }
+        .btn-buscar:hover { background: #8e44ad; }
+        .output-area {
+            background: #0f1923;
+            border: 2px solid #2c4055;
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 250px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            color: #c8d8e8;
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.6;
+        }
+        .search-input-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .search-input-group input {
+            flex: 1;
+            min-width: 200px;
+        }
+        .team-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .team-stats .stat-box {
+            background: #0f1923;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid #2c4055;
+        }
+        .team-stats .stat-box .number { font-size: 28px; font-weight: 700; display: block; }
+        .team-stats .stat-box .label { font-size: 12px; color: #8aa8c7; margin-top: 4px; }
+        .stat-box.green .number { color: #2ecc71; }
+        .stat-box.red .number { color: #e74c3c; }
+        .stat-box.blue .number { color: #3498db; }
+        .stat-box.gold .number { color: #f39c12; }
+        .games-table-wrap { overflow-x: auto; }
+        .games-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .games-table th {
+            background: #0f1923;
+            color: #3498db;
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 2px solid #2c4055;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .games-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #1a2a3a;
+            vertical-align: middle;
+        }
+        .games-table tr:hover td { background: #1a2a3a; }
+        .games-table .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-acertou { background: #27ae60; color: #fff; }
+        .badge-errou { background: #e74c3c; color: #fff; }
+        .badge-pending { background: #f39c12; color: #fff; }
+        .badge-over { background: #e74c3c; color: #fff; }
+        .badge-under { background: #3498db; color: #fff; }
+        .badge-casa { background: #f39c12; color: #0f1923; }
+        .badge-fora { background: #6a8ba8; color: #fff; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f1923; }
+        ::-webkit-scrollbar-thumb { background: #2c4055; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3498db; }
+        @media (max-width: 768px) {
+            .app-header { flex-direction: column; align-items: stretch; text-align: center; }
+            .app-header .user-area { justify-content: center; }
+            .tabs { justify-content: center; }
+            .tab-btn { padding: 10px 16px; font-size: 13px; }
+            .btn-group { justify-content: center; }
+            .btn { padding: 10px 20px; font-size: 13px; }
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-dialog {
+            background: #1a2a3a;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 750px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 2px solid #3498DB;
+            position: relative;
+        }
+        .modal-dialog .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #3498DB;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .modal-dialog .modal-subtitle {
+            color: #F39C12;
+            text-align: center;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        .modal-dialog .modal-taxa {
+            color: #3498DB;
+            background: #0f1923;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .modal-dialog .modal-label {
+            color: #8aa8c7;
+            font-size: 13px;
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .modal-dialog .modal-input {
+            width: 100%;
+            padding: 12px 15px;
+            background: #0f1923;
+            border: 2px solid #3498DB;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 16px;
+            transition: border 0.3s ease;
+        }
+        .modal-dialog .modal-input:focus { outline: none; border-color: #27AE60; }
+        .modal-dialog .modal-btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        .modal-dialog .modal-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .modal-dialog .modal-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .modal-dialog .modal-btn-success { background: #27AE60; color: #fff; }
+        .modal-dialog .modal-btn-success:hover { background: #2ECC71; }
+        .modal-dialog .modal-btn-danger { background: #E74C3C; color: #fff; }
+        .modal-dialog .modal-btn-danger:hover { background: #C0392B; }
+        .modal-dialog .modal-separator { border: none; border-top: 2px solid #3498DB; margin: 15px 0; opacity: 0.3; }
+        .modal-dialog .modal-card-container { display: flex; gap: 15px; margin: 10px 0; flex-wrap: wrap; }
+        .modal-dialog .modal-card {
+            flex: 1;
+            min-width: 200px;
+            background: #0f1923;
+            border: 2px solid #2C3E50;
+            border-radius: 10px;
+            padding: 15px;
+        }
+        .modal-dialog .modal-card-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: #3498DB;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .modal-dialog .modal-card .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #c8d8e8;
+            padding: 2px 0;
+        }
+        .modal-dialog .modal-card .stat-row .label { color: #8aa8c7; }
+        .modal-dialog .modal-card .stat-row .value { font-weight: bold; }
+        .modal-dialog .modal-card .stat-row .value.green { color: #27AE60; }
+        .modal-dialog .modal-card .stat-row .value.red { color: #E74C3C; }
+        .modal-dialog .modal-card .stat-row .value.gold { color: #F39C12; }
+        .modal-dialog .modal-card .stat-row .value.blue { color: #3498DB; }
+        .modal-dialog .modal-faixa-label {
+            color: #F39C12;
+            font-size: 9px;
+            text-align: center;
+            background: #0F1A24;
+            padding: 4px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .modal-dialog .modal-info-box {
+            background: #0F1A24;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 8px 0;
+            text-align: center;
+            color: #F39C12;
+            font-size: 13px;
+        }
+        .modal-dialog .modal-small-text {
+            font-size: 11px;
+            color: #8aa8c7;
+            text-align: center;
+            margin-top: 8px;
+        }
+        .loading-indicator {
+            text-align: center;
+            padding: 40px;
+            color: #f39c12;
+            font-size: 16px;
+        }
+        .loading-indicator .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #2c4055;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .db-status {
+            font-size: 12px;
+            color: #8aa8c7;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background: #0f1923;
+            border: 1px solid #2c4055;
+        }
+        .db-status.loaded { border-color: #27ae60; color: #27ae60; }
+        .db-status.error { border-color: #e74c3c; color: #e74c3c; }
+    </style>
+</head>
+<body>
+
+    <!-- ========================================================= -->
+    <!-- LOGIN -->
+    <!-- ========================================================= -->
+    <div id="loginContainer">
+        <div class="login-card">
+            <div class="logo">🏀</div>
+            <h2>🔐 SISTEMA</h2>
+            <p class="subtitle">Análise de Basquete · Login</p>
+            <div class="form-group">
+                <label for="loginUser">👤 USUÁRIO</label>
+                <input type="text" id="loginUser" placeholder="Digite seu username" />
+            </div>
+            <div class="form-group">
+                <label for="loginPass">🔑 SENHA</label>
+                <input type="password" id="loginPass" placeholder="Digite sua senha" />
+            </div>
+            <button class="btn-login" id="loginBtn">🔓 ENTRAR NO SISTEMA</button>
+            <div class="loading-msg" id="loginLoading"></div>
+            <div class="error-msg" id="loginError"></div>
+            <div class="footer">v3.0.0 · Basquete Completo</div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- APP -->
+    <!-- ========================================================= -->
+    <div id="appContainer">
+        <header class="app-header">
+            <h1>🏀 SISTEMA <span>BASQUETE</span></h1>
+            <div class="user-area">
+                <span class="user-name">👤 <strong id="displayUser">—</strong></span>
+                <span class="session-timer" id="sessionTimer">⏱️ Sessão: —</span>
+                <span class="db-status" id="dbStatus">📊 Banco: Carregando...</span>
+                <button class="btn-logout" id="logoutBtn">🚪 Sair</button>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tabAnalysis">📈 Análise</button>
+            <button class="tab-btn" data-tab="tabSearch">🔍 Buscar Times</button>
+        </div>
+
+        <!-- TAB ANÁLISE -->
+        <div class="tab-content active" id="tabAnalysis">
+            <div class="card">
+                <h2>📋 DADOS DO PRIMEIRO TEMPO</h2>
+                <label for="inputData">Cole os dados no formato:</label>
+                <textarea id="inputData" placeholder="Indiana Pacers
+79 <- TOTAL DO INDIANA NO 1 PERIODO
+34 <- PONTOS NO 1 QUARTO
+45 <- PONTOS NO 2 QUARTO
+
+Miami Heat
+75 <- TOTAL DO MIAMI NO 1 PERIODO
+36 <- PONTOS NO 1 QUARTO
+39 <- PONTOS NO 2 QUARTO"></textarea>
+                <div class="btn-group">
+                    <button class="btn btn-nba" id="btnAnalyzeNBA">🏀 ANALISAR NBA</button>
+                    <button class="btn btn-geral" id="btnAnalyzeGeral">🌍 ANALISAR GERAL</button>
+                </div>
+            </div>
+            <div class="card">
+                <h2>📊 RESULTADO DA ANÁLISE</h2>
+                <div class="output-area" id="outputArea">Aguardando análise...</div>
+            </div>
+        </div>
+
+        <!-- TAB BUSCAR TIMES -->
+        <div class="tab-content" id="tabSearch">
+            <div class="card">
+                <h2>🔍 BUSCAR HISTÓRICO DO TIME</h2>
+                <div class="search-input-group">
+                    <input type="text" id="searchTeamInput" placeholder="Digite o nome do time (ex: Lakers, Bulls, Celtics)" />
+                    <button class="btn btn-buscar" id="btnSearchTeam">🔍 BUSCAR</button>
+                </div>
+            </div>
+            <div class="card" id="searchResultsCard">
+                <h2>📊 RESULTADO DA BUSCA</h2>
+                <div id="searchResultsContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARA VALOR DA CASA -->
+    <div class="modal-overlay" id="inputModal">
+        <div class="modal-dialog">
+            <div class="modal-title" id="modalTitle">📝 DADOS PARA ANÁLISE</div>
+            <div class="modal-subtitle" id="modalSubtitle">🏀 NBA - OVER</div>
+            <div class="modal-taxa" id="modalTaxa">📊 TAXA DE ACERTO DO ID: --</div>
+            <div id="modalInfoBox" class="modal-info-box">📊 Pontuação 1º Tempo: 154 pontos</div>
+            <div id="modalCardsContainer" class="modal-card-container">
+                <div class="modal-card" id="modalCard1">
+                    <div class="modal-card-title" id="modalCard1Title">🎯 UNDER (RECOMENDAÇÃO)</div>
+                    <div id="modalCard1Content"></div>
+                </div>
+                <div class="modal-card" id="modalCard2">
+                    <div class="modal-card-title" id="modalCard2Title">🔄 OVER (COMPARAÇÃO)</div>
+                    <div id="modalCard2Content"></div>
+                </div>
+            </div>
+            <hr class="modal-separator" />
+            <label class="modal-label">Digite o valor da casa:</label>
+            <input type="text" class="modal-input" id="modalValorCasa" placeholder="Ex: 154.5" />
+            <div class="modal-btn-group">
+                <button class="modal-btn modal-btn-success" id="modalBtnFinalizar">✅ FINALIZAR ANÁLISE</button>
+                <button class="modal-btn modal-btn-danger" id="modalBtnCancelar">❌ CANCELAR</button>
+            </div>
+            <div class="modal-small-text">Digite o valor da casa para a recomendação</div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        // =============================================================
+        // 1. CONFIGURAÇÕES
+        // =============================================================
+        const FIREBASE_URL = "https://aovivoexe-default-rtdb.firebaseio.com/";
+        const TEMPO_EXPIRACAO_LOGIN = 6;
+        const DB_FILE_PATH = "basketball_analysis.db";
+
+        // =============================================================
+        // 2. BANCO DE DADOS
+        // =============================================================
+        let db = { jogos: [] };
+        let currentUser = null;
+        let sessionInterval = null;
+        let sessionStart = null;
+        let dbLoaded = false;
+        let SQL = null;
+
+        // =============================================================
+        // 3. CARREGAR SQL.JS
+        // =============================================================
+        function loadSQL() {
+            return new Promise((resolve, reject) => {
+                if (typeof window.initSqlJs !== 'undefined') {
+                    window.initSqlJs({
+                        locateFile: function(filename) {
+                            return 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + filename;
+                        }
+                    }).then(function(sql) {
+                        SQL = sql;
+                        resolve();
+                    }).catch(reject);
+                } else {
+                    // Aguarda o script carregar
+                    const checkSQL = setInterval(function() {
+                        if (typeof window.initSqlJs !== 'undefined') {
+                            clearInterval(checkSQL);
+                            window.initSqlJs({
+                                locateFile: function(filename) {
+                                    return 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + filename;
+                                }
+                            }).then(function(sql) {
+                                SQL = sql;
+                                resolve();
+                            }).catch(reject);
+                        }
+                    }, 500);
+                    // Timeout após 10 segundos
+                    setTimeout(() => {
+                        clearInterval(checkSQL);
+                        reject(new Error('Timeout loading SQL.js'));
+                    }, 10000);
+                }
+            });
+        }
+
+        // =============================================================
+        // 4. CARREGAR DADOS DO SQLITE
+        // =============================================================
+        async function carregarDadosSQLite() {
+            try {
+                console.log('🔄 Carregando SQL.js...');
+                await loadSQL();
+                console.log('✅ SQL.js carregado com sucesso!');
+
+                console.log(`🔄 Baixando arquivo: ${DB_FILE_PATH}`);
+                const response = await fetch(DB_FILE_PATH);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const arrayBuffer = await response.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+                
+                console.log(`📄 Arquivo carregado: ${uint8Array.length} bytes`);
+
+                // Criar banco de dados a partir do arquivo
+                const dbSQL = new SQL.Database(uint8Array);
+                console.log('✅ Banco SQLite aberto com sucesso!');
+
+                // Verificar tabelas
+                const tablesResult = dbSQL.exec("SELECT name FROM sqlite_master WHERE type='table';");
+                console.log('📋 Tabelas encontradas:', tablesResult);
+
+                // Buscar dados da tabela jogos
+                const query = `
+                    SELECT 
+                        id, 
+                        timestamp, 
+                        home_team, 
+                        away_team, 
+                        total_home, 
+                        total_away, 
+                        quarter1_home, 
+                        quarter1_away, 
+                        quarter2_home, 
+                        quarter2_away, 
+                        recommendation_type, 
+                        recommendation_value, 
+                        recommendation_text, 
+                        correct 
+                    FROM jogos 
+                    ORDER BY id
+                `;
+
+                const result = dbSQL.exec(query);
+                
+                if (result.length === 0) {
+                    console.warn('⚠️ Nenhum dado encontrado na tabela jogos');
+                    carregarDadosExemplo();
+                    return false;
+                }
+
+                // Converter para array de objetos
+                const columns = result[0].columns;
+                const values = result[0].values;
+                
+                db.jogos = values.map(row => {
+                    const obj = {};
+                    columns.forEach((col, idx) => {
+                        obj[col] = row[idx];
+                    });
+                    return obj;
+                });
+
+                dbLoaded = true;
+                console.log(`✅ Dados carregados do SQLite: ${db.jogos.length} jogos`);
+                
+                // Salvar no localStorage como cache
+                try {
+                    localStorage.setItem('basketball_db_cache', JSON.stringify(db.jogos));
+                    localStorage.setItem('basketball_db_timestamp', Date.now().toString());
+                } catch(e) {}
+                
+                return true;
+
+            } catch (error) {
+                console.error('❌ Erro ao carregar SQLite:', error.message);
+                console.log('📊 Usando dados de exemplo...');
+                carregarDadosExemplo();
+                return false;
+            }
+        }
+
+        // =============================================================
+        // 5. DADOS DE EXEMPLO (fallback)
+        // =============================================================
+        function carregarDadosExemplo() {
+            db.jogos = [
+                { id: 1, timestamp: '2026-06-28 20:15:00', home_team: 'Indiana Pacers', away_team: 'Miami Heat', total_home: 79, total_away: 75, quarter1_home: 34, quarter1_away: 36, quarter2_home: 45, quarter2_away: 39, recommendation_type: 'OVER', recommendation_value: '154.5', recommendation_text: '#N1 - OVER 154.5', correct: 1 },
+                { id: 2, timestamp: '2026-06-27 22:30:00', home_team: 'Los Angeles Lakers', away_team: 'Boston Celtics', total_home: 68, total_away: 72, quarter1_home: 30, quarter1_away: 35, quarter2_home: 38, quarter2_away: 37, recommendation_type: 'UNDER', recommendation_value: '138.5', recommendation_text: '#G1_FIXO - UNDER 138.5', correct: 0 },
+                { id: 3, timestamp: '2026-06-26 19:45:00', home_team: 'Chicago Bulls', away_team: 'New York Knicks', total_home: 82, total_away: 78, quarter1_home: 40, quarter1_away: 38, quarter2_home: 42, quarter2_away: 40, recommendation_type: 'OVER', recommendation_value: '159.5', recommendation_text: '#G19_BASE_EM_TESTES - OVER 159.5', correct: 1 },
+                { id: 4, timestamp: '2026-06-25 21:00:00', home_team: 'Golden State Warriors', away_team: 'Phoenix Suns', total_home: 92, total_away: 88, quarter1_home: 45, quarter1_away: 42, quarter2_home: 47, quarter2_away: 46, recommendation_type: 'OVER', recommendation_value: '179.5', recommendation_text: '#G6_FIXO - OVER 179.5', correct: 1 },
+                { id: 5, timestamp: '2026-06-24 20:00:00', home_team: 'Miami Heat', away_team: 'Indiana Pacers', total_home: 75, total_away: 79, quarter1_home: 36, quarter1_away: 34, quarter2_home: 39, quarter2_away: 45, recommendation_type: 'UNDER', recommendation_value: '156.5', recommendation_text: '#N2 - UNDER 156.5', correct: 1 },
+                { id: 6, timestamp: '2026-06-23 23:15:00', home_team: 'Boston Celtics', away_team: 'Los Angeles Lakers', total_home: 72, total_away: 68, quarter1_home: 35, quarter1_away: 30, quarter2_home: 37, quarter2_away: 38, recommendation_type: 'UNDER', recommendation_value: '141.5', recommendation_text: '#G1_1_3_UNDER - UNDER 141.5', correct: 1 },
+                { id: 7, timestamp: '2026-06-22 18:30:00', home_team: 'New York Knicks', away_team: 'Chicago Bulls', total_home: 78, total_away: 82, quarter1_home: 38, quarter1_away: 40, quarter2_home: 40, quarter2_away: 42, recommendation_type: 'OVER', recommendation_value: '157.5', recommendation_text: '#G3_FIXO - OVER 157.5', correct: 0 },
+                { id: 8, timestamp: '2026-06-21 20:45:00', home_team: 'Phoenix Suns', away_team: 'Golden State Warriors', total_home: 88, total_away: 92, quarter1_home: 42, quarter1_away: 45, quarter2_home: 46, quarter2_away: 47, recommendation_type: 'UNDER', recommendation_value: '181.5', recommendation_text: '#G07_1_UNDER - UNDER 181.5', correct: 0 },
+                { id: 9, timestamp: '2026-06-20 22:00:00', home_team: 'Denver Nuggets', away_team: 'Milwaukee Bucks', total_home: 65, total_away: 69, quarter1_home: 30, quarter1_away: 33, quarter2_home: 35, quarter2_away: 36, recommendation_type: 'UNDER', recommendation_value: '135.5', recommendation_text: '#G1_1_FIXO - UNDER 135.5', correct: 1 },
+                { id: 10, timestamp: '2026-06-19 19:15:00', home_team: 'Milwaukee Bucks', away_team: 'Denver Nuggets', total_home: 69, total_away: 65, quarter1_home: 33, quarter1_away: 30, quarter2_home: 36, quarter2_away: 35, recommendation_type: 'OVER', recommendation_value: '136.5', recommendation_text: '#G2_FIXO - OVER 136.5', correct: 0 },
+                { id: 11, timestamp: '2026-06-18 21:30:00', home_team: 'Dallas Mavericks', away_team: 'San Antonio Spurs', total_home: 74, total_away: 78, quarter1_home: 35, quarter1_away: 38, quarter2_home: 39, quarter2_away: 40, recommendation_type: 'UNDER', recommendation_value: '152.5', recommendation_text: '#G04_1_UNDER - UNDER 152.5', correct: 1 },
+                { id: 12, timestamp: '2026-06-17 20:00:00', home_team: 'San Antonio Spurs', away_team: 'Dallas Mavericks', total_home: 78, total_away: 74, quarter1_home: 38, quarter1_away: 35, quarter2_home: 40, quarter2_away: 39, recommendation_type: 'OVER', recommendation_value: '151.5', recommendation_text: '#G21_1_OVER - OVER 151.5', correct: 0 },
+            ];
+            dbLoaded = true;
+            try {
+                localStorage.setItem('basketball_db_arquivo', JSON.stringify(db.jogos));
+            } catch(e) {}
+        }
+
+        // =============================================================
+        // 6. CARREGAR DB
+        // =============================================================
+        async function carregarDB() {
+            // Primeiro tenta carregar do cache do localStorage
+            try {
+                const cached = localStorage.getItem('basketball_db_cache');
+                const timestamp = localStorage.getItem('basketball_db_timestamp');
+                if (cached && timestamp) {
+                    const age = Date.now() - parseInt(timestamp);
+                    // Usa cache se tiver menos de 1 hora
+                    if (age < 3600000) {
+                        db.jogos = JSON.parse(cached);
+                        dbLoaded = true;
+                        console.log(`📊 Dados carregados do cache: ${db.jogos.length} jogos`);
+                        atualizarStatusDB('loaded', `${db.jogos.length} jogos (cache)`);
+                        return;
+                    }
+                }
+            } catch(e) {}
+
+            // Tenta carregar do arquivo SQLite
+            const success = await carregarDadosSQLite();
+            if (success) {
+                atualizarStatusDB('loaded', `${db.jogos.length} jogos (SQLite)`);
+            } else {
+                atualizarStatusDB('error', 'Usando dados de exemplo');
+            }
+        }
+
+        function atualizarStatusDB(status, texto) {
+            const el = document.getElementById('dbStatus');
+            el.textContent = `📊 ${texto}`;
+            el.className = 'db-status';
+            if (status === 'loaded') el.classList.add('loaded');
+            if (status === 'error') el.classList.add('error');
+        }
+
+        // =============================================================
+        // 7. FUNÇÕES DE AUTENTICAÇÃO
+        // =============================================================
+        function getDeviceId() {
+            try {
+                if (typeof localStorage !== 'undefined') {
+                    let id = localStorage.getItem('deviceId');
+                    if (!id) {
+                        id = 'web_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+                        localStorage.setItem('deviceId', id);
+                    }
+                    return id;
+                }
+            } catch (e) {}
+            try {
+                if (typeof sessionStorage !== 'undefined') {
+                    let id = sessionStorage.getItem('deviceId');
+                    if (!id) {
+                        id = 'web_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+                        sessionStorage.setItem('deviceId', id);
+                    }
+                    return id;
+                }
+            } catch (e) {}
+            return 'web_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+        }
+
+        const DEVICE_ID = getDeviceId();
+
+        async function verificarLogin(username, senha) {
+            try {
+                const url = `${FIREBASE_URL}/usuarios/${username}.json`;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!response.ok) {
+                    return { autorizado: false, motivo: `ERRO_CONEXAO_${response.status}` };
+                }
+                const dados = await response.json();
+                if (!dados) {
+                    return { autorizado: false, motivo: "USUARIO_INEXISTENTE" };
+                }
+                if (dados.senha !== senha) {
+                    return { autorizado: false, motivo: "SENHA_INCORRETA" };
+                }
+                const status = dados.status || 'liberado';
+                if (status !== 'liberado') {
+                    return { autorizado: false, motivo: `BLOQUEADO_${status}` };
+                }
+                const ipVinculado = dados.ip_vinculado;
+                const deviceVinculado = dados.device_id;
+                if (!ipVinculado && !deviceVinculado) {
+                    await vincularPrimeiroAcesso(username, dados);
+                    return { autorizado: true, motivo: "PRIMEIRO_ACESSO_VINCULADO", dados };
+                }
+                if (deviceVinculado && deviceVinculado !== DEVICE_ID) {
+                    return { autorizado: false, motivo: "DEVICE_DIFERENTE" };
+                }
+                await atualizarAcesso(username);
+                return { autorizado: true, motivo: "AUTORIZADO", dados };
+            } catch (error) {
+                if (error.name === 'AbortError' || error.message.includes('timeout') || error.message.includes('network') || error.message.includes('fetch')) {
+                    return { autorizado: false, motivo: "SEM_INTERNET" };
+                }
+                return { autorizado: false, motivo: `ERRO:${error.message}` };
+            }
+        }
+
+        async function vincularPrimeiroAcesso(username, dados) {
+            try {
+                const url = `${FIREBASE_URL}/usuarios/${username}.json`;
+                const ip = await getIP();
+                const updates = {
+                    ip_vinculado: ip,
+                    device_id: DEVICE_ID,
+                    ultimo_ip: ip,
+                    ultimo_acesso: new Date().toISOString(),
+                    data_primeiro_acesso: dados.data_primeiro_acesso || new Date().toISOString(),
+                    sistema_operacional: 'Web',
+                    hostname: 'web_browser',
+                    ultima_verificacao: new Date().toISOString()
+                };
+                await fetch(url, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updates)
+                });
+            } catch (e) {}
+        }
+
+        async function atualizarAcesso(username) {
+            try {
+                const url = `${FIREBASE_URL}/usuarios/${username}.json`;
+                const ip = await getIP();
+                const updates = {
+                    ultimo_ip: ip,
+                    ultimo_acesso: new Date().toISOString(),
+                    ultima_verificacao: new Date().toISOString()
+                };
+                await fetch(url, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updates)
+                });
+            } catch (e) {}
+        }
+
+        async function getIP() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json', { timeout: 5000 });
+                const data = await response.json();
+                return data.ip || 'unknown';
+            } catch { return 'unknown'; }
+        }
+
+        // =============================================================
+        // 8. DICIONÁRIO DE FAIXAS
+        // =============================================================
+        const faixasPorIdentificador = {
+            "N1": [0, 103], "N2": [112, 119], "N3": [112, 119], "N4": [112, 119],
+            "G1_FIXO": [61, 68], "G1_1_FIXO": [61, 68], "G1_2_FIXO": [61, 68],
+            "G1_1_3_UNDER": [61, 68], "G1_EM_TESTES": [61, 68], "G01_1_UNDER": [61, 68], "G01_1_UNDER_MAX": [61, 68],
+            "G1_2_UNDER": [0, 64], "G1_2_UNDER_MAX": [0, 64], "G31_FIXO": [66, 69], "G2_FIXO": [66, 69],
+            "G45_EM_TESTES": [65, 69], "G16_EM_TESTES": [67, 69], "G47_EM_TESTES": [65, 68],
+            "G21_1_OVER": [65, 73], "G24_1_UNDER": [65, 73],
+            "G04_1_UNDER": [74, 79], "G04_1_UNDER_MAX": [74, 79], "G4_FIXO_2_TESTE": [74, 79],
+            "G4_1_EM_TESTES": [74, 79], "G4_1_2_EM_TESTES": [74, 79],
+            "G04_2_UNDER": [74, 79], "G19_BASE_EM_TESTES": [72, 76],
+            "G26_1_UNDER": [72, 76], "G40_BASE_EM_TESTES": [76, 79],
+            "G11_1_UNDER": [70, 74], "G32_EM_TESTES": [75, 79],
+            "G46_EM_TESTES": [71, 74], "G3_1_FIXO": [80, 80],
+            "G3_FIXO": [80, 80], "G37_EM_TESTES": [80, 84],
+            "G29_BASE_EM_TESTES": [80, 85], "G36_EM_TESTES": [80, 85], "G48_EM_TESTES": [80, 83],
+            "G10_1_UNDER": [81, 85], "G10_1_UNDER_MAX": [81, 85], "G10_EM_TESTES": [81, 85],
+            "G10_2_UNDER": [81, 85], "G10_2_UNDER_MAX": [81, 85], "G42_EM_TESTES": [81, 85],
+            "G23_BASE_EM_TESTES": [82, 86], "G27_1_UNDER": [82, 86], "G27_1_UNDER_MAX": [82, 86],
+            "G18_BASE_EM_TESTES": [82, 86], "G44_EM_TESTES": [83, 89],
+            "G09_1_UNDER": [85, 87], "G09_1_UNDER_MAX": [85, 87], "G38_1_UNDER": [86, 90], "G38_1_UNDER_MAX": [86, 90],
+            "G25_EM_TESTES": [88, 90], "G26_EM_TESTES": [88, 90],
+            "G5_FIXO": [88, 90], "G5_2_FIXO": [88, 90],
+            "G13_BASE_EM_TESTES": [82, 86], "G30_EM_TESTES": [84, 88],
+            "G35_EM_TESTES": [91, 94], "G14_BASE_EM_TESTES": [87, 90],
+            "G22_1_UNDER": [87, 90], "G22_1_UNDER_MAX": [87, 90], "G30_1_UNDER": [90, 95],
+            "G41_BASE_EM_TESTES": [91, 94], "G6_FIXO": [91, 95],
+            "G6_EM_TESTES": [91, 95], "G15_1_UNDER": [92, 96], "G15_1_UNDER_AMX": [92, 96],
+            "G39_1_UNDER": [95, 99], "G39_1_UNDER_MAX": [95, 99], "G12_BASE_EM_TESTES": [96, 99],
+            "G33_EM_TESTES": [97, 99], "G20_1_UNDER": [91, 99], "G20_1_UNDER_MAX": [91, 99],
+            "G28_BASE_EM_TESTES": [91, 99], "G34_EM_TESTES": [100, 107],
+            "G43_EM_TESTES": [106, 999], "G7_3_FIXO": [115, 999],
+            "G8_FIXO": [100, 999], "G07_1_UNDER": [100, 999], "G07_1_UNDER_MAX": [100, 999],
+            "G7_FIXO": [100, 999], "G7_2_FIXO": [100, 999],
+            "G_TESTES_TUDO_2": [0, 999], "G_TESTES_TUDO": [0, 999],
+            "G_GERAL_UNDER": [0, 999], "G_GERAL_OVER": [0, 999],
+            "G_TUDO_UNDER": [0, 999]
+        };
+
+        // =============================================================
+        // 9. PARSER
+        // =============================================================
+        const Parser = {
+            parse(rawText) {
+                const lines = rawText.split('\n').map(l => l.replace(/<.*$/, '').trim()).filter(l => l.length > 0);
+                if (lines.length < 8) return null;
+                const extractNum = (str) => {
+                    const m = str.match(/(\d+)/);
+                    return m ? parseInt(m[1], 10) : 0;
+                };
+                try {
+                    return {
+                        home_team: lines[0],
+                        away_team: lines[4],
+                        home_total: extractNum(lines[1]),
+                        away_total: extractNum(lines[5]),
+                        home_q1: extractNum(lines[2]),
+                        home_q2: extractNum(lines[3]),
+                        away_q1: extractNum(lines[6]),
+                        away_q2: extractNum(lines[7]),
+                        period: 2
+                    };
+                } catch (e) { return null; }
+            }
+        };
+
+        // =============================================================
+        // 10. FUNÇÕES DE HISTÓRICO
+        // =============================================================
+        function getHistoricoTime(timeNome, recTypeFilter = null) {
+            let jogos = db.jogos.filter(j => j.home_team === timeNome || j.away_team === timeNome);
+            if (recTypeFilter) jogos = jogos.filter(j => j.recommendation_type === recTypeFilter);
+            const total = jogos.length;
+            const acertos = jogos.filter(j => j.correct === 1).length;
+            return { total, acertos, taxa: total > 0 ? (acertos / total) * 100 : 0, jogos };
+        }
+
+        function getTodosTimes() {
+            const times = new Set();
+            db.jogos.forEach(j => { times.add(j.home_team); times.add(j.away_team); });
+            return Array.from(times).sort();
+        }
+
+        function buscarEstatisticasTimeContraAposta(teamName, tipoRecomendacao, minPontos, maxPontos) {
+            let jogos = db.jogos.filter(j => j.home_team === teamName || j.away_team === teamName);
+            if (minPontos !== undefined && maxPontos !== undefined) {
+                jogos = jogos.filter(j => {
+                    const pts = j.total_home + j.total_away;
+                    return pts >= minPontos && pts <= maxPontos;
+                });
+            }
+            if (tipoRecomendacao) jogos = jogos.filter(j => j.recommendation_type === tipoRecomendacao);
+
+            let underTotal = 0, underAcertou = 0, underErrou = 0;
+            let overTotal = 0, overAcertou = 0, overErrou = 0;
+
+            jogos.forEach(j => {
+                if (j.recommendation_type === "UNDER") {
+                    underTotal++;
+                    if (j.correct === 1) underAcertou++;
+                    else if (j.correct === 0) underErrou++;
+                } else if (j.recommendation_type === "OVER") {
+                    overTotal++;
+                    if (j.correct === 1) overAcertou++;
+                    else if (j.correct === 0) overErrou++;
+                }
+            });
+
+            let acertos, total;
+            if (tipoRecomendacao === "UNDER") {
+                acertos = underAcertou + overErrou;
+                total = underTotal + overTotal;
+            } else {
+                acertos = overAcertou + underErrou;
+                total = overTotal + underErrou;
+            }
+
+            const taxa = total > 0 ? (acertos / total) * 100 : 0;
+
+            return {
+                total: total,
+                acertos: acertos,
+                taxa: taxa,
+                detalhes: {
+                    recomendacao_direta: tipoRecomendacao === "UNDER" ? underAcertou : overAcertou,
+                    contra_aposta: tipoRecomendacao === "UNDER" ? overErrou : underErrou,
+                    recomendacao_tipo: tipoRecomendacao
+                }
+            };
+        }
+
+        // =============================================================
+        // 11. FUNÇÕES DOS CARDS
+        // =============================================================
+        function criarCardTimeCompleto(homeTeam, awayTeam, tipoRecomendacao, tituloCard, identificadorAtual) {
+            const faixa = faixasPorIdentificador[identificadorAtual] || [0, 999];
+            const minPontos = faixa[0];
+            const maxPontos = faixa[1];
+
+            const statsFaixaHome = buscarEstatisticasTimeContraAposta(homeTeam, tipoRecomendacao, minPontos, maxPontos);
+            const statsFaixaAway = buscarEstatisticasTimeContraAposta(awayTeam, tipoRecomendacao, minPontos, maxPontos);
+            const statsGeralHome = buscarEstatisticasTimeContraAposta(homeTeam, tipoRecomendacao, null, null);
+            const statsGeralAway = buscarEstatisticasTimeContraAposta(awayTeam, tipoRecomendacao, null, null);
+
+            const temDadosFaixaHome = statsFaixaHome.total > 0;
+            const temDadosFaixaAway = statsFaixaAway.total > 0;
+
+            const statsHome = temDadosFaixaHome ? statsFaixaHome : statsGeralHome;
+            const statsAway = temDadosFaixaAway ? statsFaixaAway : statsGeralAway;
+            const tituloSecao = (temDadosFaixaHome || temDadosFaixaAway) ? '📊 POR FAIXA' : '📊 GERAL (TODAS FAIXAS)';
+
+            let html = `<div class="modal-faixa-label">🎯 FILTRO: 1º Tempo entre ${minPontos} e ${maxPontos} pontos</div>`;
+            html += `<div style="font-size:10px; color:#3498DB; font-weight:bold; text-align:center; margin-bottom:6px;">${tituloSecao}</div>`;
+
+            html += `<div style="font-size:11px; color:#27AE60; font-weight:bold;">🏠 ${homeTeam}</div>`;
+            if (statsHome.total > 0) {
+                const emoji = statsHome.taxa >= 70 ? '🔥' : statsHome.taxa >= 50 ? '📈' : '⚠️';
+                const corTaxa = statsHome.taxa >= 70 ? '#27AE60' : statsHome.taxa >= 50 ? '#F39C12' : '#E74C3C';
+                html += `<div class="stat-row"><span class="label">${emoji} (${statsHome.acertos}/${statsHome.total})</span><span class="value" style="color:${corTaxa};">${statsHome.taxa.toFixed(1)}%</span></div>`;
+                html += `<div style="font-size:9px; color:#8aa8c7; margin-left:18px;">✅ ${statsHome.detalhes.recomendacao_direta} acertos diretos | 🔄 ${statsHome.detalhes.contra_aposta} contra-aposta</div>`;
+            } else {
+                html += `<div style="font-size:10px; color:#8aa8c7; text-align:center;">📭 Nenhum jogo encontrado</div>`;
+            }
+
+            html += `<div style="font-size:11px; color:#F39C12; font-weight:bold; margin-top:6px;">✈️ ${awayTeam}</div>`;
+            if (statsAway.total > 0) {
+                const emoji = statsAway.taxa >= 70 ? '🔥' : statsAway.taxa >= 50 ? '📈' : '⚠️';
+                const corTaxa = statsAway.taxa >= 70 ? '#27AE60' : statsAway.taxa >= 50 ? '#F39C12' : '#E74C3C';
+                html += `<div class="stat-row"><span class="label">${emoji} (${statsAway.acertos}/${statsAway.total})</span><span class="value" style="color:${corTaxa};">${statsAway.taxa.toFixed(1)}%</span></div>`;
+                html += `<div style="font-size:9px; color:#8aa8c7; margin-left:18px;">✅ ${statsAway.detalhes.recomendacao_direta} acertos diretos | 🔄 ${statsAway.detalhes.contra_aposta} contra-aposta</div>`;
+            } else {
+                html += `<div style="font-size:10px; color:#8aa8c7; text-align:center;">📭 Nenhum jogo encontrado</div>`;
+            }
+
+            return html;
+        }
+
+        function getDisplayName(identificador) {
+            const displays = {
+                'N1': '🏀 NBA - OVER', 'N2': '🏀 NBA - UNDER', 'N3': '🏀 NBA - UNDER (DIF ≥10)', 'N4': '🏀 NBA #N4 - UNDER',
+                'G1_1_3_UNDER': '🌍 GERAL #G1_1_3_UNDER - UNDER', 'G1_EM_TESTES': '🌍 GERAL #G1_EM_TESTES - UNDER',
+                'G01_1_UNDER_MAX': '#G01_1_UNDER_MAX 📌', 'G01_1_UNDER': '#G01_1_UNDER 📌',
+                'G16_EM_TESTES': '🌍 GERAL #G16_EM_TESTES - OVER', 'G1_FIXO': '🌍 GERAL #G1_FIXO - OVER',
+                'G1_1_FIXO': '🌍 GERAL #G1_1_FIXO - OVER', 'G1_2_FIXO': '🌍 GERAL #G1_2_FIXO - UNDER',
+                'G21_1_OVER': '#G21_1_OVER 📌', 'G24_1_UNDER': '#G24_1_UNDER 📌',
+                'G31_FIXO': '🌍 GERAL #G31_FIXO - UNDER', 'G2_FIXO': '🌍 GERAL #G2_FIXO - OVER',
+                'G45_EM_TESTES': '🌍 GERAL #G45_EM_TESTES - UNDER', 'G47_EM_TESTES': '🌍 GERAL #G47_EM_TESTES - UNDER',
+                'G1_2_UNDER_MAX': '#G1_2_UNDER_MAX 📌', 'G1_2_UNDER': '#G1_2_UNDER 📌',
+                'G04_1_UNDER_MAX': '#G04_1_UNDER_MAX 📌', 'G04_1_UNDER': '#G04_1_UNDER 📌',
+                'G4_FIXO_2_TESTE': '🌍 GERAL #G4_FIXO_2_TESTE - UNDER', 'G4_1_EM_TESTES': '🌍 GERAL #G4_1_EM_TESTES - UNDER',
+                'G4_1_2_EM_TESTES': '🌍 GERAL #G4_1_2_EM_TESTES - OVER', 'G04_2_UNDER': '#G04_2_UNDER 📌',
+                'G19_BASE_EM_TESTES': '🌍 GERAL #G19_BASE_EM_TESTES - OVER', 'G26_1_UNDER': '#G26_1_UNDER 📌',
+                'G40_BASE_EM_TESTES': '🌍 GERAL #G40_BASE_EM_TESTES - UNDER', 'G11_1_UNDER': '#G11_1_UNDER 📌',
+                'G32_EM_TESTES': '🌍 GERAL #G32_EM_TESTES - UNDER', 'G46_EM_TESTES': '🌍 GERAL #G46_EM_TESTES - UNDER',
+                'G3_1_FIXO': '🌍 GERAL #G3_1_FIXO - OVER', 'G3_FIXO': '🌍 GERAL #G3_FIXO - OVER',
+                'G37_EM_TESTES': '🌍 GERAL #G37_EM_TESTES - UNDER', 'G29_BASE_EM_TESTES': '🌍 GERAL #G29_BASE_EM_TESTES - OVER',
+                'G36_EM_TESTES': '🌍 GERAL #G36_EM_TESTES - UNDER', 'G48_EM_TESTES': '🌍 GERAL #G48_EM_TESTES - UNDER',
+                'G10_1_UNDER': '#G10_1_UNDER 📌', 'G10_1_UNDER_MAX': '#G10_1_UNDER_MAX 📌',
+                'G10_EM_TESTES': '🌍 GERAL #G10_EM_TESTES - OVER', 'G10_2_UNDER': '#G10_2_UNDER 📌',
+                'G10_2_UNDER_MAX': '#G10_2_UNDER_MAX 📌', 'G42_EM_TESTES': '🌍 GERAL #G42_EM_TESTES - UNDER',
+                'G23_BASE_EM_TESTES': '🌍 GERAL #G23_BASE_EM_TESTES - OVER', 'G27_1_UNDER': '#G27_1_UNDER 📌',
+                'G27_1_UNDER_MAX': '#G27_1_UNDER_MAX 📌', 'G18_BASE_EM_TESTES': '🌍 GERAL #G18_BASE_EM_TESTES - UNDER',
+                'G_GERAL_OVER': '🌍 GERAL #G_GERAL_OVER - OVER', 'G09_1_UNDER': '#G09_1_UNDER 📌',
+                'G09_1_UNDER_MAX': '#G09_1_UNDER_MAX 📌', 'G38_1_UNDER': '#G38_1_UNDER 📌',
+                'G38_1_UNDER_MAX': '#G38_1_UNDER_MAX 📌', 'G25_EM_TESTES': '🌍 GERAL #G25_EM_TESTES - UNDER',
+                'G26_EM_TESTES': '🌍 GERAL #G26_EM_TESTES - OVER', 'G5_FIXO': '🌍 GERAL #G5_FIXO - OVER',
+                'G5_2_FIXO': '🌍 GERAL #G5_2_FIXO - UNDER', 'G13_BASE_EM_TESTES': '🌍 GERAL #G13_BASE_EM_TESTES - UNDER',
+                'G30_EM_TESTES': '🌍 GERAL #G30_EM_TESTES - UNDER', 'G35_EM_TESTES': '🌍 GERAL #G35_EM_TESTES - OVER',
+                'G14_BASE_EM_TESTES': '🌍 GERAL #G14_BASE_EM_TESTES - OVER', 'G22_1_UNDER': '🌍 GERAL #G22_1_UNDER 📌',
+                'G22_1_UNDER_MAX': '🌍 GERAL #G22_1_UNDER_MAX 📌', 'G30_1_UNDER': '#G30_1_UNDER 📌',
+                'G41_BASE_EM_TESTES': '🌍 GERAL #G41_BASE_EM_TESTES - UNDER', 'G6_FIXO': '🌍 GERAL #G6_FIXO - OVER',
+                'G6_EM_TESTES': '🌍 GERAL #G6_EM_TESTES - OVER', 'G15_1_UNDER': '#G15_1_UNDER 📌',
+                'G15_1_UNDER_AMX': '#G15_1_UNDER_AMX 📌', 'G39_1_UNDER': '#G39_1_UNDER 📌',
+                'G39_1_UNDER_MAX': '#G39_1_UNDER_MAX 📌', 'G12_BASE_EM_TESTES': '🌍 GERAL #G12_BASE_EM_TESTES - UNDER',
+                'G33_EM_TESTES': '🌍 GERAL #G33_EM_TESTES - UNDER', 'G20_1_UNDER': '#G20_1_UNDER 📌',
+                'G20_1_UNDER_MAX': '#G20_1_UNDER_MAX 📌', 'G28_BASE_EM_TESTES': '🌍 GERAL #G28_BASE_EM_TESTES - UNDER',
+                'G34_EM_TESTES': '🌍 GERAL #G34_EM_TESTES - UNDER', 'G43_EM_TESTES': '🌍 GERAL #G43_EM_TESTES - OVER',
+                'G7_3_FIXO': '🌍 GERAL #G7_3_FIXO - OVER', 'G8_FIXO': '🌍 GERAL #G8_FIXO - OVER',
+                'G07_1_UNDER': '#G07_1_UNDER 📌', 'G07_1_UNDER_MAX': '#G07_1_UNDER_MAX 📌',
+                'G7_FIXO': '🌍 GERAL #G7_FIXO - UNDER', 'G7_2_FIXO': '🌍 GERAL #G7_2_FIXO - OVER',
+                'G_TESTES_TUDO_2': '🌍 GERAL #G_TESTES_TUDO_2 - UNDER', 'G_TESTES_TUDO': '🌍 GERAL #G_TESTES_TUDO - UNDER',
+                'G_GERAL_UNDER': '🌍 GERAL #G_GERAL_UNDER - UNDER', 'G_TUDO_UNDER': '🌍 GERAL #G_TUDO_UNDER - UNDER'
+            };
+            return displays[identificador] || `🌍 GERAL #${identificador}`;
+        }
+
+        function getTipoRecomendacao(identificador) {
+            const tipos = {
+                'N1': 'OVER', 'N2': 'UNDER', 'N3': 'UNDER', 'N4': 'UNDER',
+                'G1_1_3_UNDER': 'UNDER', 'G1_EM_TESTES': 'UNDER', 'G01_1_UNDER_MAX': 'UNDER', 'G01_1_UNDER': 'UNDER',
+                'G16_EM_TESTES': 'OVER', 'G1_FIXO': 'OVER', 'G1_1_FIXO': 'OVER', 'G1_2_FIXO': 'UNDER',
+                'G21_1_OVER': 'OVER', 'G24_1_UNDER': 'UNDER', 'G31_FIXO': 'UNDER', 'G2_FIXO': 'OVER',
+                'G45_EM_TESTES': 'UNDER', 'G47_EM_TESTES': 'UNDER', 'G1_2_UNDER_MAX': 'UNDER', 'G1_2_UNDER': 'UNDER',
+                'G04_1_UNDER_MAX': 'UNDER', 'G04_1_UNDER': 'UNDER', 'G4_FIXO_2_TESTE': 'UNDER', 'G4_1_EM_TESTES': 'UNDER',
+                'G4_1_2_EM_TESTES': 'OVER', 'G04_2_UNDER': 'UNDER', 'G19_BASE_EM_TESTES': 'OVER', 'G26_1_UNDER': 'UNDER',
+                'G40_BASE_EM_TESTES': 'UNDER', 'G11_1_UNDER': 'UNDER', 'G32_EM_TESTES': 'UNDER', 'G46_EM_TESTES': 'UNDER',
+                'G3_1_FIXO': 'OVER', 'G3_FIXO': 'OVER', 'G37_EM_TESTES': 'UNDER', 'G29_BASE_EM_TESTES': 'OVER',
+                'G36_EM_TESTES': 'UNDER', 'G48_EM_TESTES': 'UNDER', 'G10_1_UNDER': 'UNDER', 'G10_1_UNDER_MAX': 'UNDER',
+                'G10_EM_TESTES': 'OVER', 'G10_2_UNDER': 'UNDER', 'G10_2_UNDER_MAX': 'UNDER', 'G42_EM_TESTES': 'UNDER',
+                'G23_BASE_EM_TESTES': 'OVER', 'G27_1_UNDER': 'UNDER', 'G27_1_UNDER_MAX': 'UNDER', 'G18_BASE_EM_TESTES': 'UNDER',
+                'G_GERAL_OVER': 'OVER', 'G09_1_UNDER': 'UNDER', 'G09_1_UNDER_MAX': 'UNDER', 'G38_1_UNDER': 'UNDER',
+                'G38_1_UNDER_MAX': 'UNDER', 'G25_EM_TESTES': 'UNDER', 'G26_EM_TESTES': 'OVER', 'G5_FIXO': 'OVER',
+                'G5_2_FIXO': 'UNDER', 'G13_BASE_EM_TESTES': 'UNDER', 'G30_EM_TESTES': 'UNDER', 'G35_EM_TESTES': 'OVER',
+                'G14_BASE_EM_TESTES': 'OVER', 'G22_1_UNDER': 'UNDER', 'G22_1_UNDER_MAX': 'UNDER', 'G30_1_UNDER': 'UNDER',
+                'G41_BASE_EM_TESTES': 'UNDER', 'G6_FIXO': 'OVER', 'G6_EM_TESTES': 'OVER', 'G15_1_UNDER': 'UNDER',
+                'G15_1_UNDER_AMX': 'UNDER', 'G39_1_UNDER': 'UNDER', 'G39_1_UNDER_MAX': 'UNDER', 'G12_BASE_EM_TESTES': 'UNDER',
+                'G33_EM_TESTES': 'UNDER', 'G20_1_UNDER': 'UNDER', 'G20_1_UNDER_MAX': 'UNDER', 'G28_BASE_EM_TESTES': 'UNDER',
+                'G34_EM_TESTES': 'UNDER', 'G43_EM_TESTES': 'OVER', 'G7_3_FIXO': 'OVER', 'G8_FIXO': 'OVER',
+                'G07_1_UNDER': 'UNDER', 'G07_1_UNDER_MAX': 'UNDER', 'G7_FIXO': 'UNDER', 'G7_2_FIXO': 'OVER',
+                'G_TESTES_TUDO_2': 'UNDER', 'G_TESTES_TUDO': 'UNDER', 'G_GERAL_UNDER': 'UNDER', 'G_TUDO_UNDER': 'UNDER'
+            };
+            return tipos[identificador] || 'UNDER';
+        }
+
+        function carregarTaxaIdentificador(id) {
+            const jogos = db.jogos.filter(j => j.recommendation_text && j.recommendation_text.includes(`#${id}`));
+            const total = jogos.length;
+            const acertos = jogos.filter(j => j.correct === 1).length;
+            if (total > 0) {
+                const taxa = (acertos / total) * 100;
+                const emoji = taxa >= 70 ? '🔥' : taxa >= 50 ? '📈' : '⚠️';
+                return `${emoji} TAXA DE ACERTO DO ID: ${taxa.toFixed(1)}% (${acertos}/${total})`;
+            }
+            return '📊 TAXA DE ACERTO DO ID: Sem dados ainda';
+        }
+
+        // =============================================================
+        // 12. getEffectiveValue
+        // =============================================================
+        function getEffectiveValue(valorCasa, tipo) {
+            if (valorCasa === null || valorCasa === undefined) return null;
+            const v = parseFloat(valorCasa);
+            if (isNaN(v)) return null;
+            if (v % 1 === 0.5) {
+                if (tipo === 'OVER') return Math.floor(v) + 1;
+                if (tipo === 'UNDER') return Math.floor(v);
+            }
+            return Math.floor(v);
+        }
+
+        // =============================================================
+        // 13. MODAL
+        // =============================================================
+        let modalResolve = null;
+
+        function showModal(title, subtitle, taxaText, infoText, tipoRecomendacao, pontos1p, homeTeam, awayTeam, identificador) {
+            document.getElementById('modalTitle').textContent = title || '📝 DADOS PARA ANÁLISE';
+            document.getElementById('modalSubtitle').textContent = subtitle || '🏀 NBA - OVER';
+            document.getElementById('modalTaxa').textContent = taxaText || '📊 TAXA DE ACERTO DO ID: --';
+            document.getElementById('modalInfoBox').textContent = infoText || `📊 Pontuação 1º Tempo: ${pontos1p || 0} pontos`;
+            document.getElementById('modalValorCasa').value = '';
+
+            const isOver = tipoRecomendacao === 'OVER';
+            const recType = isOver ? 'OVER' : 'UNDER';
+            const oppType = isOver ? 'UNDER' : 'OVER';
+
+            document.getElementById('modalCard1Title').textContent = `🎯 ${recType} (RECOMENDAÇÃO)`;
+            document.getElementById('modalCard2Title').textContent = `🔄 ${oppType} (COMPARAÇÃO)`;
+
+            document.getElementById('modalCard1Content').innerHTML = criarCardTimeCompleto(homeTeam, awayTeam, recType, 'RECOMENDAÇÃO', identificador);
+            document.getElementById('modalCard2Content').innerHTML = criarCardTimeCompleto(homeTeam, awayTeam, oppType, 'COMPARAÇÃO', identificador);
+
+            document.getElementById('inputModal').classList.add('active');
+            document.getElementById('modalValorCasa').focus();
+        }
+
+        function closeModal() {
+            document.getElementById('inputModal').classList.remove('active');
+            if (modalResolve) { modalResolve(null); modalResolve = null; }
+        }
+
+        document.getElementById('modalBtnFinalizar').addEventListener('click', function() {
+            const text = document.getElementById('modalValorCasa').value.trim();
+            const valor = parseFloat(text.replace(',', '.'));
+            if (isNaN(valor)) { alert('Digite um valor válido!'); return; }
+            if (modalResolve) { modalResolve(valor); modalResolve = null; }
+            document.getElementById('inputModal').classList.remove('active');
+        });
+
+        document.getElementById('modalBtnCancelar').addEventListener('click', closeModal);
+
+        document.getElementById('modalValorCasa').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') document.getElementById('modalBtnFinalizar').click();
+            if (e.key === 'Escape') closeModal();
+        });
+
+        document.getElementById('inputModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        function promptValorCasa(identificador, pontos1p, data) {
+            return new Promise((resolve) => {
+                const displayName = getDisplayName(identificador);
+                const tipoRecomendacao = getTipoRecomendacao(identificador);
+                const taxaText = carregarTaxaIdentificador(identificador);
+
+                showModal(
+                    '📝 DADOS PARA ANÁLISE',
+                    displayName,
+                    taxaText,
+                    `📊 Pontuação 1º Tempo: ${pontos1p} pontos`,
+                    tipoRecomendacao,
+                    pontos1p,
+                    data.home_team,
+                    data.away_team,
+                    identificador
+                );
+                modalResolve = function(valor) { resolve(valor); modalResolve = null; };
+            });
+        }
+
+        // =============================================================
+        // 14. FUNÇÃO DE ANÁLISE PRINCIPAL
+        // =============================================================
+        async function performAnalysis(rawText, tipo) {
+            const data = Parser.parse(rawText);
+            if (!data) {
+                return { error: 'Formato de dados inválido. Use: Time Casa / Total 1P / Q1 / Q2 / Time Fora / Total 1P / Q1 / Q2' };
+            }
+
+            const pontos_1p = data.home_total + data.away_total;
+            const pontos_1q = data.home_q1 + data.away_q1;
+            const pontos_2q = data.home_q2 + data.away_q2;
+            const RTA = pontos_1p / 20;
+            const dif_casa_fora = data.home_total - data.away_total;
+            const dif_fora_casa = data.away_total - data.home_total;
+            const pontos_ambos_1Q = data.home_q1 + data.away_q1;
+            const pontos_ambos_2Q = data.home_q2 + data.away_q2;
+            const pontos_1p_casa = data.home_total;
+            const pontos_1p_fora = data.away_total;
+            const pontos_dif_casa_fora = data.home_total - data.away_total;
+
+            const tem_quarto_20_mais = data.home_q1 >= 20 || data.away_q1 >= 20 || data.home_q2 >= 20 || data.away_q2 >= 20;
+            const tem_quarto_30_mais = data.home_q1 >= 30 || data.away_q1 >= 30 || data.home_q2 >= 30 || data.away_q2 >= 30;
+            const tem_quarto_29_mais = data.home_q1 >= 29 || data.away_q1 >= 29 || data.home_q2 >= 29 || data.away_q2 >= 29;
+            const tem_quarto_29_menos = data.home_q1 <= 29 || data.away_q1 <= 29 || data.home_q2 <= 29 || data.away_q2 <= 29;
+            const tem_quarto_27_mais = data.home_q1 >= 27 || data.away_q1 >= 27 || data.home_q2 >= 27 || data.away_q2 >= 27;
+            const tem_quarto_26_mais = data.home_q1 >= 26 || data.away_q1 >= 26 || data.home_q2 >= 26 || data.away_q2 >= 26;
+            const tem_quarto_10_ou_menos = data.home_q1 <= 10 || data.away_q1 <= 10 || data.home_q2 <= 10 || data.away_q2 <= 10;
+            const tem_quarto_25_ou_menos = data.home_q1 >= 25 || data.away_q1 >= 25 || data.home_q2 >= 25 || data.away_q2 >= 25;
+            const tem_quarto_33_mais = data.home_q1 >= 33 || data.away_q1 >= 33 || data.home_q2 >= 33 || data.away_q2 >= 33;
+            const quartos_com_20_mais = (data.home_q1 >= 20 ? 1 : 0) + (data.away_q1 >= 20 ? 1 : 0) + (data.home_q2 >= 20 ? 1 : 0) + (data.away_q2 >= 20 ? 1 : 0);
+
+            let recomendacao_encontrada = false;
+            let recommendation = null;
+            let output = [];
+
+            output.push(`🏀 ANÁLISE DE BASQUETE - ${tipo.toUpperCase()}`);
+            output.push('='.repeat(60));
+            output.push(`\n🎮 ${data.home_team} vs ${data.away_team}`);
+            output.push(`📊 Placar 1º Tempo: ${data.home_total} - ${data.away_total}`);
+            output.push('');
+            output.push('📈 DETALHAMENTO POR QUARTO:');
+            output.push(`   1º Quarto: ${data.home_q1} - ${data.away_q1}`);
+            output.push(`   2º Quarto: ${data.home_q2} - ${data.away_q2}`);
+            output.push('');
+            output.push('='.repeat(60));
+
+            // ============================================================
+            // ANÁLISE NBA - ORDEM EXATA DO PYTHON
+            // ============================================================
+            if (tipo === 'nba') {
+                // N1
+                if (!recomendacao_encontrada && pontos_1p <= 103) {
+                    const valorCasa = await promptValorCasa('N1', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const valor_efetivo = getEffectiveValue(valorCasa, "OVER");
+                        const calculo = valor_efetivo - pontos_1p;
+                        const valor_resto = pontos_1p - calculo;
+                        if (valor_resto >= -10) {
+                            recommendation = { type: 'OVER', id: 'N1', display: '🏀 NBA - OVER', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #N1 - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • Valor efetivo para OVER: ${valor_efetivo}`);
+                            output.push(`   • Cálculo: ${valor_efetivo} - ${pontos_1p} = ${calculo}`);
+                            output.push(`   • Valor resto: ${pontos_1p} - ${calculo} = ${valor_resto}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                            if (valor_efetivo !== valorCasa) output.push(`   • Observação: Valor efetivo para validação: ${valor_efetivo}`);
+                        }
+                    }
+                }
+
+                // N3
+                if (!recomendacao_encontrada && pontos_1p >= 112 && pontos_1p <= 119 && (dif_casa_fora >= 10 || dif_fora_casa >= 10)) {
+                    const valorCasa = await promptValorCasa('N3', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const valor_casa_int = Math.floor(valorCasa);
+                        const calculo = valor_casa_int - pontos_1p;
+                        const valor_resto = pontos_1p - calculo;
+                        const valor_efetivo = getEffectiveValue(valorCasa, "UNDER");
+                        if (valor_resto < 0 || (0 <= valor_resto && valor_resto <= 7)) {
+                            recommendation = { type: 'UNDER', id: 'N3', display: '🏀 NBA - UNDER (DIF ≥10)', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #N3 - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • Cálculo: ${valor_casa_int} - ${pontos_1p} = ${calculo}`);
+                            output.push(`   • Valor resto: ${pontos_1p} - ${calculo} = ${valor_resto}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                            if (valor_efetivo !== valorCasa) output.push(`   • Observação: Valor efetivo para validação: ${valor_efetivo}`);
+                        }
+                    }
+                }
+
+                // N4
+                if (!recomendacao_encontrada && pontos_1p >= 112 && pontos_1p <= 119 && pontos_1p_fora > pontos_1p_casa && (dif_casa_fora <= 5 || dif_fora_casa <= 5)) {
+                    const valorCasa = await promptValorCasa('N4', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const valor_casa_int = Math.floor(valorCasa);
+                        const calculo = valor_casa_int - pontos_1p;
+                        const valor_resto = pontos_1p - calculo;
+                        const valor_efetivo = getEffectiveValue(valorCasa, "UNDER");
+                        if (valor_resto < 0 || (0 <= valor_resto && valor_resto <= 7)) {
+                            recommendation = { type: 'UNDER', id: 'N4', display: '🏀 NBA #N4 - UNDER', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #N4 - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • Cálculo: ${valor_casa_int} - ${pontos_1p} = ${calculo}`);
+                            output.push(`   • Valor resto: ${pontos_1p} - ${calculo} = ${valor_resto}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                            if (valor_efetivo !== valorCasa) output.push(`   • Observação: Valor efetivo para validação: ${valor_efetivo}`);
+                        }
+                    }
+                }
+
+                // N2
+                if (!recomendacao_encontrada && pontos_1p >= 112 && pontos_1p <= 119) {
+                    const valorCasa = await promptValorCasa('N2', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const valor_casa_int = Math.floor(valorCasa);
+                        const calculo = valor_casa_int - pontos_1p;
+                        const valor_resto = pontos_1p - calculo;
+                        const valor_efetivo = getEffectiveValue(valorCasa, "UNDER");
+                        if (valor_resto < 0 || (0 <= valor_resto && valor_resto <= 7)) {
+                            recommendation = { type: 'UNDER', id: 'N2', display: '🏀 NBA - UNDER', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #N2 - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • Cálculo: ${valor_casa_int} - ${pontos_1p} = ${calculo}`);
+                            output.push(`   • Valor resto: ${pontos_1p} - ${calculo} = ${valor_resto}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                            if (valor_efetivo !== valorCasa) output.push(`   • Observação: Valor efetivo para validação: ${valor_efetivo}`);
+                        }
+                    }
+                }
+            }
+
+            // ============================================================
+            // ANÁLISE GERAL - ORDEM EXATA DO PYTHON
+            // ============================================================
+            if (tipo === 'geral') {
+                // ID #G1_1_3_UNDER
+                if (!recomendacao_encontrada && 61 <= pontos_1p && pontos_1p <= 68 && RTA <= 3.200 && pontos_1p_casa >= pontos_1p_fora && pontos_1p_casa - pontos_1p_fora >= 12) {
+                    const valorCasa = await promptValorCasa('G1_1_3_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        if (pontos_1p_fora > pontos_1p_casa || valorCasa <= 135.5) {
+                            recommendation = { type: 'UNDER', id: 'G1_1_3_UNDER', display: '🌍 GERAL #G1_1_3_UNDER - UNDER', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #G1_1_3_UNDER - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                        }
+                    }
+                }
+
+                // G1_EM_TESTES
+                if (!recomendacao_encontrada && 61 <= pontos_1p && pontos_1p <= 68 && RTA <= 3.200 && pontos_ambos_2Q < pontos_ambos_1Q && pontos_ambos_1Q - pontos_ambos_2Q <= 13 && (pontos_1p_casa - pontos_1p_fora <= 18 || pontos_1p_fora - pontos_1p_casa <= 22)) {
+                    const valorCasa = await promptValorCasa('G1_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G1_EM_TESTES', display: '🌍 GERAL #G1_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G1_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G01_1_UNDER_MAX
+                if (!recomendacao_encontrada && 61 <= pontos_1p && pontos_1p <= 68 && pontos_ambos_2Q - pontos_ambos_1Q <= 15 && !tem_quarto_25_ou_menos && (pontos_1p_casa - pontos_1p_fora >= 7 || pontos_1p_fora - pontos_1p_casa >= 7) && pontos_ambos_2Q <= pontos_ambos_1Q) {
+                    const valorCasa = await promptValorCasa('G01_1_UNDER_MAX', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 152.5) {
+                        recommendation = { type: 'UNDER', id: 'G01_1_UNDER_MAX', display: '#G01_1_UNDER_MAX 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G01_1_UNDER_MAX - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G01_1_UNDER
+                if (!recomendacao_encontrada && 61 <= pontos_1p && pontos_1p <= 68 && pontos_ambos_2Q - pontos_ambos_1Q <= 15 && !tem_quarto_25_ou_menos && (pontos_1p_casa - pontos_1p_fora >= 7 || pontos_1p_fora - pontos_1p_casa >= 7) && pontos_ambos_2Q <= pontos_ambos_1Q) {
+                    const valorCasa = await promptValorCasa('G01_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa > 138.5) {
+                        recommendation = { type: 'UNDER', id: 'G01_1_UNDER', display: '#G01_1_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G01_1_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G16_EM_TESTES
+                if (!recomendacao_encontrada && 67 <= pontos_1p && pontos_1p <= 69 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora >= 13) {
+                    const valorCasa = await promptValorCasa('G16_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa + 0.5 - (pontos_1p * 2) <= 14) {
+                        recommendation = { type: 'OVER', id: 'G16_EM_TESTES', display: '🌍 GERAL #G16_EM_TESTES - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G16_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G1_FIXO
+                if (!recomendacao_encontrada && 61 <= pontos_1p && pontos_1p <= 68 && RTA <= 3.200 && pontos_ambos_2Q >= pontos_ambos_1Q && (5 <= pontos_1p_casa - pontos_1p_fora && pontos_1p_casa - pontos_1p_fora <= 18 || 5 <= pontos_1p_fora - pontos_1p_casa && pontos_1p_fora - pontos_1p_casa <= 22)) {
+                    const valorCasa = await promptValorCasa('G1_FIXO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (pontos_1p_fora > pontos_1p_casa || valorCasa <= 135.5)) {
+                        recommendation = { type: 'OVER', id: 'G1_FIXO', display: '🌍 GERAL #G1_FIXO - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G1_FIXO - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G1_1_FIXO
+                if (!recomendacao_encontrada && 61 <= pontos_1p && pontos_1p <= 68 && RTA <= 3.200 && (7 <= pontos_1p_casa - pontos_1p_fora && pontos_1p_casa - pontos_1p_fora <= 18 || 7 <= pontos_1p_fora - pontos_1p_casa && pontos_1p_fora - pontos_1p_casa <= 22)) {
+                    const valorCasa = await promptValorCasa('G1_1_FIXO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa <= 138.5) {
+                        recommendation = { type: 'OVER', id: 'G1_1_FIXO', display: '🌍 GERAL #G1_1_FIXO - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G1_1_FIXO - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G1_2_FIXO
+                if (!recomendacao_encontrada && RTA <= 3.200 && pontos_1p_casa >= pontos_1p_fora && pontos_1p_casa - pontos_1p_fora <= 12 && !tem_quarto_20_mais) {
+                    const valorCasa = await promptValorCasa('G1_2_FIXO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G1_2_FIXO', display: '🌍 GERAL #G1_2_FIXO - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G1_2_FIXO - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G21_1_OVER
+                if (!recomendacao_encontrada && 65 <= pontos_1p && pontos_1p <= 73 && pontos_ambos_2Q < pontos_ambos_1Q && Math.abs(pontos_1p_casa - pontos_1p_fora) <= 15 && (pontos_1p_fora - pontos_1p_casa <= 6 || pontos_1p_casa - pontos_1p_fora >= 3)) {
+                    const valorCasa = await promptValorCasa('G21_1_OVER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa <= 151.5 && (valorCasa + 0.5) - (pontos_1p * 2) <= 15) {
+                        recommendation = { type: 'OVER', id: 'G21_1_OVER', display: '#G21_1_OVER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G21_1_OVER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G31_FIXO
+                if (!recomendacao_encontrada && 66 <= pontos_1p && pontos_1p <= 69 && RTA >= 3.300 && pontos_ambos_2Q < pontos_ambos_1Q && (pontos_1p_casa - pontos_1p_fora <= 7 || pontos_1p_fora >= pontos_1p_casa)) {
+                    const valorCasa = await promptValorCasa('G31_FIXO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const TOTAL_FINAL = valorCasa / 40;
+                        const CALCULO_BASE_NEGATIVO = TOTAL_FINAL - RTA;
+                        if (TOTAL_FINAL > RTA && CALCULO_BASE_NEGATIVO >= 0.100) {
+                            recommendation = { type: 'UNDER', id: 'G31_FIXO', display: '🌍 GERAL #G31_FIXO - UNDER', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #G31_FIXO - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • TOTAL_FINAL: ${TOTAL_FINAL.toFixed(2)}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                        }
+                    }
+                }
+
+                // G2_FIXO
+                if (!recomendacao_encontrada && 66 <= pontos_1p && pontos_1p <= 69 && RTA >= 3.300 && !tem_quarto_10_ou_menos && Math.abs(pontos_1p_casa - pontos_1p_fora) <= 10 && (pontos_1p_casa - pontos_1p_fora <= 7 || pontos_1p_fora >= pontos_1p_casa)) {
+                    const valorCasa = await promptValorCasa('G2_FIXO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const TOTAL_FINAL = valorCasa / 40;
+                        const CALCULO_BASE_NEGATIVO = TOTAL_FINAL - RTA;
+                        if (TOTAL_FINAL > RTA && CALCULO_BASE_NEGATIVO >= 0.100) {
+                            recommendation = { type: 'OVER', id: 'G2_FIXO', display: '🌍 GERAL #G2_FIXO - OVER', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #G2_FIXO - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • TOTAL_FINAL: ${TOTAL_FINAL.toFixed(2)}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                        }
+                    }
+                }
+
+                // G45_EM_TESTES
+                if (!recomendacao_encontrada && 65 <= pontos_1p && pontos_1p <= 69 && !tem_quarto_27_mais && Math.abs(pontos_1p_casa - pontos_1p_fora) >= 5) {
+                    const valorCasa = await promptValorCasa('G45_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa - (pontos_1p * 2) >= 1.5) {
+                        recommendation = { type: 'UNDER', id: 'G45_EM_TESTES', display: '🌍 GERAL #G45_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G45_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G47_EM_TESTES
+                if (!recomendacao_encontrada && 65 <= pontos_1p && pontos_1p <= 68 && pontos_1p_fora >= pontos_1p_casa) {
+                    const valorCasa = await promptValorCasa('G47_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 139.5) {
+                        recommendation = { type: 'UNDER', id: 'G47_EM_TESTES', display: '🌍 GERAL #G47_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G47_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G1_2_UNDER_MAX
+                if (!recomendacao_encontrada && RTA <= 3.200 && pontos_1p_fora >= pontos_1p_casa && Math.abs(pontos_1p_casa - pontos_1p_fora) <= 16) {
+                    const valorCasa = await promptValorCasa('G1_2_UNDER_MAX', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 140.5) {
+                        recommendation = { type: 'UNDER', id: 'G1_2_UNDER_MAX', display: '#G1_2_UNDER_MAX 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G1_2_UNDER_MAX - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G1_2_UNDER
+                if (!recomendacao_encontrada && RTA <= 3.200 && pontos_1p_fora >= pontos_1p_casa && Math.abs(pontos_1p_casa - pontos_1p_fora) <= 16) {
+                    const valorCasa = await promptValorCasa('G1_2_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G1_2_UNDER', display: '#G1_2_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G1_2_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G04_1_UNDER_MAX
+                if (!recomendacao_encontrada && 74 <= pontos_1p && pontos_1p <= 79 && RTA <= 3.950 && pontos_1p_casa > pontos_1p_fora && 3 <= pontos_dif_casa_fora && pontos_dif_casa_fora <= 15) {
+                    const valorCasa = await promptValorCasa('G04_1_UNDER_MAX', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const CALCULO_BASE_NEGATIVO = (valorCasa / 40) - RTA;
+                        if (CALCULO_BASE_NEGATIVO >= -0.100 && valorCasa >= 165.5) {
+                            recommendation = { type: 'UNDER', id: 'G04_1_UNDER_MAX', display: '#G04_1_UNDER_MAX 📌', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #G04_1_UNDER_MAX - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                        }
+                    }
+                }
+
+                // G04_1_UNDER
+                if (!recomendacao_encontrada && 74 <= pontos_1p && pontos_1p <= 79 && RTA <= 3.950 && pontos_1p_casa > pontos_1p_fora && 3 <= pontos_dif_casa_fora && pontos_dif_casa_fora <= 15) {
+                    const valorCasa = await promptValorCasa('G04_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const CALCULO_BASE_NEGATIVO = (valorCasa / 40) - RTA;
+                        if (CALCULO_BASE_NEGATIVO >= -0.100 && valorCasa >= 157.5) {
+                            recommendation = { type: 'UNDER', id: 'G04_1_UNDER', display: '#G04_1_UNDER 📌', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #G04_1_UNDER - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                        }
+                    }
+                }
+
+                // G4_1_EM_TESTES
+                if (!recomendacao_encontrada && 74 <= pontos_1p && pontos_1p <= 79 && RTA <= 3.950 && pontos_1p_fora > pontos_1p_casa && pontos_1p_fora - pontos_1p_casa <= 18) {
+                    const valorCasa = await promptValorCasa('G4_1_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const CALCULO_BASE_NEGATIVO = (valorCasa / 40) - RTA;
+                        if (CALCULO_BASE_NEGATIVO >= -0.100 && valorCasa >= 162.5) {
+                            recommendation = { type: 'UNDER', id: 'G4_1_EM_TESTES', display: '🌍 GERAL #G4_1_EM_TESTES - UNDER', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #G4_1_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                        }
+                    }
+                }
+
+                // G04_2_UNDER
+                if (!recomendacao_encontrada && 74 <= pontos_1p && pontos_1p <= 79 && RTA <= 3.950 && pontos_1p_casa >= pontos_1p_fora && pontos_1p_casa - pontos_1p_fora <= 10 && pontos_ambos_2Q < pontos_ambos_1Q) {
+                    const valorCasa = await promptValorCasa('G04_2_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const CALCULO_BASE_NEGATIVO = (valorCasa / 40) - RTA;
+                        if (CALCULO_BASE_NEGATIVO >= -0.100) {
+                            recommendation = { type: 'UNDER', id: 'G04_2_UNDER', display: '#G04_2_UNDER 📌', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #G04_2_UNDER - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                        }
+                    }
+                }
+
+                // G19_BASE_EM_TESTES
+                if (!recomendacao_encontrada && 72 <= pontos_1p && pontos_1p <= 76 && 2 <= pontos_1p_casa - pontos_1p_fora && pontos_1p_casa - pontos_1p_fora <= 20 && quartos_com_20_mais >= 2) {
+                    const valorCasa = await promptValorCasa('G19_BASE_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa <= 159.5) {
+                        recommendation = { type: 'OVER', id: 'G19_BASE_EM_TESTES', display: '🌍 GERAL #G19_BASE_EM_TESTES - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G19_BASE_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G26_1_UNDER
+                if (!recomendacao_encontrada && 72 <= pontos_1p && pontos_1p <= 76 && pontos_1p_casa >= pontos_1p_fora && Math.abs(pontos_1p_casa - pontos_1p_fora) <= 19 && pontos_ambos_2Q - pontos_ambos_1Q <= 11 && (pontos_1p_casa - pontos_1p_fora >= 20 || quartos_com_20_mais <= 1)) {
+                    const valorCasa = await promptValorCasa('G26_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G26_1_UNDER', display: '#G26_1_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G26_1_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G40_BASE_EM_TESTES
+                if (!recomendacao_encontrada && 76 <= pontos_1p && pontos_1p <= 79 && pontos_ambos_2Q < pontos_ambos_1Q) {
+                    const valorCasa = await promptValorCasa('G40_BASE_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa - (pontos_1p * 2) >= 5) {
+                        recommendation = { type: 'UNDER', id: 'G40_BASE_EM_TESTES', display: '🌍 GERAL #G40_BASE_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G40_BASE_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G11_1_UNDER
+                if (!recomendacao_encontrada && 70 <= pontos_1p && pontos_1p <= 74 && pontos_1p_fora > pontos_1p_casa && pontos_1p_fora - pontos_1p_casa <= 13) {
+                    const valorCasa = await promptValorCasa('G11_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (valorCasa / 40) >= 3.775) {
+                        recommendation = { type: 'UNDER', id: 'G11_1_UNDER', display: '#G11_1_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G11_1_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G32_EM_TESTES
+                if (!recomendacao_encontrada && 75 <= pontos_1p && pontos_1p <= 79 && (pontos_1p_fora - pontos_1p_casa >= 19 || pontos_1p_casa - pontos_1p_fora >= 19)) {
+                    const valorCasa = await promptValorCasa('G32_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 160.5) {
+                        recommendation = { type: 'UNDER', id: 'G32_EM_TESTES', display: '🌍 GERAL #G32_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G32_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G46_EM_TESTES
+                if (!recomendacao_encontrada && 71 <= pontos_1p && pontos_1p <= 74 && !tem_quarto_26_mais && Math.abs(pontos_1p_casa - pontos_1p_fora) <= 17) {
+                    const valorCasa = await promptValorCasa('G46_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa - (pontos_1p * 2) >= 3.5) {
+                        recommendation = { type: 'UNDER', id: 'G46_EM_TESTES', display: '🌍 GERAL #G46_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G46_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G3_1_FIXO
+                if (!recomendacao_encontrada && pontos_1p == 80 && RTA >= 4.000 && pontos_ambos_2Q > pontos_ambos_1Q) {
+                    const valorCasa = await promptValorCasa('G3_1_FIXO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'OVER', id: 'G3_1_FIXO', display: '🌍 GERAL #G3_1_FIXO - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G3_1_FIXO - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G3_FIXO
+                if (!recomendacao_encontrada && pontos_1p == 80 && RTA >= 4.000 && Math.abs(pontos_ambos_2Q - pontos_ambos_1Q) <= 12 && (pontos_1p_casa - pontos_1p_fora >= 10 || 5 <= pontos_1p_fora - pontos_1p_casa && pontos_1p_fora - pontos_1p_casa <= 14)) {
+                    const valorCasa = await promptValorCasa('G3_FIXO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa < 165.5) {
+                        recommendation = { type: 'OVER', id: 'G3_FIXO', display: '🌍 GERAL #G3_FIXO - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G3_FIXO - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G10_1_UNDER_MAX
+                if (!recomendacao_encontrada && 81 <= pontos_1p && pontos_1p <= 85 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora >= 3 && pontos_ambos_2Q < pontos_ambos_1Q) {
+                    const valorCasa = await promptValorCasa('G10_1_UNDER_MAX', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 172.5 && valorCasa - (pontos_1p * 2) >= 2) {
+                        recommendation = { type: 'UNDER', id: 'G10_1_UNDER_MAX', display: '#G10_1_UNDER_MAX 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G10_1_UNDER_MAX - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G10_1_UNDER
+                if (!recomendacao_encontrada && 81 <= pontos_1p && pontos_1p <= 85 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora >= 3 && pontos_ambos_2Q < pontos_ambos_1Q) {
+                    const valorCasa = await promptValorCasa('G10_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa - (pontos_1p * 2) >= 1) {
+                        recommendation = { type: 'UNDER', id: 'G10_1_UNDER', display: '#G10_1_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G10_1_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G10_EM_TESTES
+                if (!recomendacao_encontrada && 81 <= pontos_1p && pontos_1p <= 85 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora >= 3 && pontos_ambos_2Q > pontos_ambos_1Q && pontos_ambos_2Q - pontos_ambos_1Q >= 8) {
+                    const valorCasa = await promptValorCasa('G10_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const TOTAL_FINAL = valorCasa / 40;
+                        if (TOTAL_FINAL >= 4.100 && valorCasa <= 176.5) {
+                            recommendation = { type: 'OVER', id: 'G10_EM_TESTES', display: '🌍 GERAL #G10_EM_TESTES - OVER', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #G10_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • TOTAL_FINAL: ${TOTAL_FINAL.toFixed(2)}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                        }
+                    }
+                }
+
+                // G10_2_UNDER_MAX
+                if (!recomendacao_encontrada && 81 <= pontos_1p && pontos_1p <= 85 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora >= 3) {
+                    const valorCasa = await promptValorCasa('G10_2_UNDER_MAX', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const TOTAL_FINAL = valorCasa / 40;
+                        if (TOTAL_FINAL >= 4.100 && valorCasa >= 171.5) {
+                            recommendation = { type: 'UNDER', id: 'G10_2_UNDER_MAX', display: '#G10_2_UNDER_MAX 📌', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #G10_2_UNDER_MAX - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • TOTAL_FINAL: ${TOTAL_FINAL.toFixed(2)}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                        }
+                    }
+                }
+
+                // G10_2_UNDER
+                if (!recomendacao_encontrada && 81 <= pontos_1p && pontos_1p <= 85 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora >= 3) {
+                    const valorCasa = await promptValorCasa('G10_2_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const TOTAL_FINAL = valorCasa / 40;
+                        if (TOTAL_FINAL >= 4.100 && (pontos_1p * 2) - valorCasa <= 2) {
+                            recommendation = { type: 'UNDER', id: 'G10_2_UNDER', display: '#G10_2_UNDER 📌', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #G10_2_UNDER - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • TOTAL_FINAL: ${TOTAL_FINAL.toFixed(2)}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                        }
+                    }
+                }
+
+                // G42_EM_TESTES
+                if (!recomendacao_encontrada && 81 <= pontos_1p && pontos_1p <= 85 && pontos_1p_fora - pontos_1p_casa >= 10 && pontos_ambos_2Q < pontos_ambos_1Q) {
+                    const valorCasa = await promptValorCasa('G42_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G42_EM_TESTES', display: '🌍 GERAL #G42_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G42_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G23_BASE_EM_TESTES
+                if (!recomendacao_encontrada && 82 <= pontos_1p && pontos_1p <= 86 && pontos_1p_fora - pontos_1p_casa >= 3 && pontos_ambos_2Q >= pontos_ambos_1Q && tem_quarto_27_mais) {
+                    const valorCasa = await promptValorCasa('G23_BASE_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa <= 171.5) {
+                        recommendation = { type: 'OVER', id: 'G23_BASE_EM_TESTES', display: '🌍 GERAL #G23_BASE_EM_TESTES - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G23_BASE_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G27_1_UNDER_MAX
+                if (!recomendacao_encontrada && 82 <= pontos_1p && pontos_1p <= 86 && pontos_1p_fora >= pontos_1p_casa) {
+                    const valorCasa = await promptValorCasa('G27_1_UNDER_MAX', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 177.5) {
+                        recommendation = { type: 'UNDER', id: 'G27_1_UNDER_MAX', display: '#G27_1_UNDER_MAX 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G27_1_UNDER_MAX - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G27_1_UNDER
+                if (!recomendacao_encontrada && 82 <= pontos_1p && pontos_1p <= 86 && pontos_1p_fora >= pontos_1p_casa) {
+                    const valorCasa = await promptValorCasa('G27_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 165.5) {
+                        recommendation = { type: 'UNDER', id: 'G27_1_UNDER', display: '#G27_1_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G27_1_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G18_BASE_EM_TESTES
+                if (!recomendacao_encontrada && 82 <= pontos_1p && pontos_1p <= 86 && pontos_1p_fora < pontos_1p_casa && pontos_ambos_1Q > pontos_ambos_2Q) {
+                    const valorCasa = await promptValorCasa('G18_BASE_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 166.5) {
+                        recommendation = { type: 'UNDER', id: 'G18_BASE_EM_TESTES', display: '🌍 GERAL #G18_BASE_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G18_BASE_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G09_1_UNDER_MAX
+                if (!recomendacao_encontrada && 85 <= pontos_1p && pontos_1p <= 87 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora <= 7) {
+                    const valorCasa = await promptValorCasa('G09_1_UNDER_MAX', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 175.5) {
+                        recommendation = { type: 'UNDER', id: 'G09_1_UNDER_MAX', display: '#G09_1_UNDER_MAX 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G09_1_UNDER_MAX - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G09_1_UNDER
+                if (!recomendacao_encontrada && 85 <= pontos_1p && pontos_1p <= 87 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora <= 7) {
+                    const valorCasa = await promptValorCasa('G09_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G09_1_UNDER', display: '#G09_1_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G09_1_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G38_1_UNDER_MAX
+                if (!recomendacao_encontrada && 86 <= pontos_1p && pontos_1p <= 90 && ((5 <= pontos_1p_casa - pontos_1p_fora && pontos_1p_casa - pontos_1p_fora <= 12) || (pontos_1p_fora - pontos_1p_casa >= 7)) && (pontos_ambos_2Q <= pontos_ambos_1Q || pontos_ambos_1Q - pontos_ambos_2Q <= 5)) {
+                    const valorCasa = await promptValorCasa('G38_1_UNDER_MAX', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 178.5) {
+                        recommendation = { type: 'UNDER', id: 'G38_1_UNDER_MAX', display: '#G38_1_UNDER_MAX 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G38_1_UNDER_MAX - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G38_1_UNDER
+                if (!recomendacao_encontrada && 86 <= pontos_1p && pontos_1p <= 90 && ((5 <= pontos_1p_casa - pontos_1p_fora && pontos_1p_casa - pontos_1p_fora <= 12) || (pontos_1p_fora - pontos_1p_casa >= 7)) && (pontos_ambos_2Q <= pontos_ambos_1Q || pontos_ambos_1Q - pontos_ambos_2Q <= 5)) {
+                    const valorCasa = await promptValorCasa('G38_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G38_1_UNDER', display: '#G38_1_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G38_1_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G25_EM_TESTES
+                if (!recomendacao_encontrada && 88 <= pontos_1p && pontos_1p <= 90 && RTA >= 4.400 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora >= 14) {
+                    const valorCasa = await promptValorCasa('G25_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 174.5) {
+                        recommendation = { type: 'UNDER', id: 'G25_EM_TESTES', display: '🌍 GERAL #G25_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G25_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G5_FIXO
+                if (!recomendacao_encontrada && 88 <= pontos_1p && pontos_1p <= 90 && RTA >= 4.400 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora >= 6 && tem_quarto_29_mais) {
+                    const valorCasa = await promptValorCasa('G5_FIXO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (valorCasa / 40) - RTA < 0) {
+                        recommendation = { type: 'OVER', id: 'G5_FIXO', display: '🌍 GERAL #G5_FIXO - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G5_FIXO - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G5_2_FIXO
+                if (!recomendacao_encontrada && 88 <= pontos_1p && pontos_1p <= 90 && RTA >= 4.400 && pontos_1p_casa > pontos_1p_fora && 4 <= pontos_1p_casa - pontos_1p_fora && pontos_1p_casa - pontos_1p_fora <= 12 && tem_quarto_29_menos && pontos_ambos_2Q < pontos_ambos_1Q) {
+                    const valorCasa = await promptValorCasa('G5_2_FIXO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (valorCasa / 40) - RTA < 0) {
+                        recommendation = { type: 'UNDER', id: 'G5_2_FIXO', display: '🌍 GERAL #G5_2_FIXO - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G5_2_FIXO - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G13_BASE_EM_TESTES
+                if (!recomendacao_encontrada && 82 <= pontos_1p && pontos_1p <= 86 && pontos_1p_fora > pontos_1p_casa && pontos_1p_fora - pontos_1p_casa >= 6) {
+                    const valorCasa = await promptValorCasa('G13_BASE_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (pontos_1p * 2) - valorCasa >= 0 && pontos_ambos_1Q - pontos_ambos_2Q >= 5) {
+                        recommendation = { type: 'UNDER', id: 'G13_BASE_EM_TESTES', display: '🌍 GERAL #G13_BASE_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G13_BASE_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G14_BASE_EM_TESTES
+                if (!recomendacao_encontrada && 87 <= pontos_1p && pontos_1p <= 90 && pontos_1p_fora > pontos_1p_casa && pontos_1p_fora - pontos_1p_casa <= 16 && (pontos_ambos_2Q >= pontos_ambos_1Q || pontos_ambos_1Q - pontos_ambos_2Q <= 4)) {
+                    const valorCasa = await promptValorCasa('G14_BASE_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'OVER', id: 'G14_BASE_EM_TESTES', display: '🌍 GERAL #G14_BASE_EM_TESTES - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G14_BASE_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G22_1_UNDER_MAX
+                if (!recomendacao_encontrada && 87 <= pontos_1p && pontos_1p <= 90 && pontos_1p_fora > pontos_1p_casa && pontos_1p_fora - pontos_1p_casa <= 8) {
+                    const valorCasa = await promptValorCasa('G22_1_UNDER_MAX', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 179.5) {
+                        recommendation = { type: 'UNDER', id: 'G22_1_UNDER_MAX', display: '🌍 GERAL #G22_1_UNDER_MAX 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G22_1_UNDER_MAX - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G22_1_UNDER
+                if (!recomendacao_encontrada && 87 <= pontos_1p && pontos_1p <= 90 && pontos_1p_fora > pontos_1p_casa && pontos_1p_fora - pontos_1p_casa <= 8) {
+                    const valorCasa = await promptValorCasa('G22_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G22_1_UNDER', display: '🌍 GERAL #G22_1_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G22_1_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G30_EM_TESTES
+                if (!recomendacao_encontrada && 84 <= pontos_1p && pontos_1p <= 88 && pontos_ambos_2Q <= pontos_ambos_1Q) {
+                    const valorCasa = await promptValorCasa('G30_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (valorCasa - (pontos_1p * 2) >= 0 || (pontos_1p * 2) - valorCasa <= 0.5)) {
+                        recommendation = { type: 'UNDER', id: 'G30_EM_TESTES', display: '🌍 GERAL #G30_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G30_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G36_EM_TESTES
+                if (!recomendacao_encontrada && 80 <= pontos_1p && pontos_1p <= 85 && 4 <= Math.abs(pontos_1p_casa - pontos_1p_fora) && Math.abs(pontos_1p_casa - pontos_1p_fora) <= 8 && !tem_quarto_26_mais) {
+                    const valorCasa = await promptValorCasa('G36_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G36_EM_TESTES', display: '🌍 GERAL #G36_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G36_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G37_EM_TESTES
+                if (!recomendacao_encontrada && 80 <= pontos_1p && pontos_1p <= 84 && Math.abs(pontos_1p_casa - pontos_1p_fora) >= 2 && ((pontos_1p_casa - pontos_1p_fora) <= 9 || (pontos_1p_fora - pontos_1p_casa) <= 9)) {
+                    const valorCasa = await promptValorCasa('G37_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa - (pontos_1p * 2) >= 2) {
+                        recommendation = { type: 'UNDER', id: 'G37_EM_TESTES', display: '🌍 GERAL #G37_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G37_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G29_BASE_EM_TESTES
+                if (!recomendacao_encontrada && 80 <= pontos_1p && pontos_1p <= 85 && pontos_ambos_2Q > pontos_ambos_1Q) {
+                    const valorCasa = await promptValorCasa('G29_BASE_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (pontos_1p * 2) - valorCasa >= 2) {
+                        recommendation = { type: 'OVER', id: 'G29_BASE_EM_TESTES', display: '🌍 GERAL #G29_BASE_EM_TESTES - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G29_BASE_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G48_EM_TESTES
+                if (!recomendacao_encontrada && 80 <= pontos_1p && pontos_1p <= 83 && pontos_1p_fora > pontos_1p_casa && pontos_1p_fora - pontos_1p_casa >= 2 && pontos_ambos_1Q - pontos_ambos_2Q >= 6) {
+                    const valorCasa = await promptValorCasa('G48_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G48_EM_TESTES', display: '🌍 GERAL #G48_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G48_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G44_EM_TESTES
+                if (!recomendacao_encontrada && 83 <= pontos_1p && pontos_1p <= 89 && Math.abs(pontos_1p_casa - pontos_1p_fora) >= 16) {
+                    const valorCasa = await promptValorCasa('G44_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (pontos_1p * 2) - valorCasa >= 2) {
+                        recommendation = { type: 'OVER', id: 'G44_EM_TESTES', display: '🌍 GERAL #G44_EM_TESTES - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G44_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G6_FIXO
+                if (!recomendacao_encontrada && 91 <= pontos_1p && pontos_1p <= 95 && RTA <= 4.750 && pontos_1p_casa > pontos_1p_fora && tem_quarto_30_mais && ((pontos_ambos_2Q >= pontos_ambos_1Q || pontos_ambos_1Q - pontos_ambos_2Q <= 1) || (pontos_1p_casa - pontos_1p_fora >= 15))) {
+                    const valorCasa = await promptValorCasa('G6_FIXO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (pontos_1p * 2) - valorCasa >= 8.5) {
+                        recommendation = { type: 'OVER', id: 'G6_FIXO', display: '🌍 GERAL #G6_FIXO - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G6_FIXO - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G30_1_UNDER
+                if (!recomendacao_encontrada && 90 <= pontos_1p && pontos_1p <= 95 && pontos_1p_fora > pontos_1p_casa && Math.abs(pontos_1p_casa - pontos_1p_fora) <= 7 && ((pontos_ambos_2Q - pontos_ambos_1Q) <= 2 || pontos_ambos_2Q < pontos_ambos_1Q)) {
+                    const valorCasa = await promptValorCasa('G30_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G30_1_UNDER', display: '#G30_1_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G30_1_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G35_EM_TESTES
+                if (!recomendacao_encontrada && 91 <= pontos_1p && pontos_1p <= 94 && 0 <= (pontos_ambos_2Q - pontos_ambos_1Q) && (pontos_ambos_2Q - pontos_ambos_1Q) <= 10) {
+                    const valorCasa = await promptValorCasa('G35_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (pontos_1p * 2) - valorCasa >= 7) {
+                        recommendation = { type: 'OVER', id: 'G35_EM_TESTES', display: '🌍 GERAL #G35_EM_TESTES - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G35_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G15_1_UNDER_AMX
+                if (!recomendacao_encontrada && 92 <= pontos_1p && pontos_1p <= 96 && pontos_1p_fora > pontos_1p_casa && pontos_ambos_2Q < pontos_ambos_1Q) {
+                    const valorCasa = await promptValorCasa('G15_1_UNDER_AMX', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 180.5) {
+                        recommendation = { type: 'UNDER', id: 'G15_1_UNDER_AMX', display: '#G15_1_UNDER_AMX 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G15_1_UNDER_AMX - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G15_1_UNDER
+                if (!recomendacao_encontrada && 92 <= pontos_1p && pontos_1p <= 96 && pontos_1p_fora > pontos_1p_casa && pontos_ambos_2Q < pontos_ambos_1Q) {
+                    const valorCasa = await promptValorCasa('G15_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G15_1_UNDER', display: '#G15_1_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G15_1_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G6_EM_TESTES
+                if (!recomendacao_encontrada && 91 <= pontos_1p && pontos_1p <= 95 && RTA <= 4.750 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora > 5 && (pontos_ambos_2Q >= pontos_ambos_1Q || pontos_ambos_1Q - pontos_ambos_2Q <= 1)) {
+                    const valorCasa = await promptValorCasa('G6_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const CALCULO_BASE_NEGATIVO = (valorCasa / 40) - RTA;
+                        if (CALCULO_BASE_NEGATIVO < 0 && valorCasa <= 179.5) {
+                            recommendation = { type: 'OVER', id: 'G6_EM_TESTES', display: '🌍 GERAL #G6_EM_TESTES - OVER', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #G6_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                        }
+                    }
+                }
+
+                // G12_BASE_EM_TESTES
+                if (!recomendacao_encontrada && 96 <= pontos_1p && pontos_1p <= 99 && pontos_1p_casa - pontos_1p_fora >= 15) {
+                    const valorCasa = await promptValorCasa('G12_BASE_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 182.5) {
+                        recommendation = { type: 'UNDER', id: 'G12_BASE_EM_TESTES', display: '🌍 GERAL #G12_BASE_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G12_BASE_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G20_1_UNDER_MAX
+                if (!recomendacao_encontrada && 91 <= pontos_1p && pontos_1p <= 99 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora <= 19 && !tem_quarto_33_mais) {
+                    const valorCasa = await promptValorCasa('G20_1_UNDER_MAX', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 190.5) {
+                        recommendation = { type: 'UNDER', id: 'G20_1_UNDER_MAX', display: '#G20_1_UNDER_MAX 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G20_1_UNDER_MAX - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G20_1_UNDER
+                if (!recomendacao_encontrada && 91 <= pontos_1p && pontos_1p <= 99 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora <= 19 && !tem_quarto_33_mais) {
+                    const valorCasa = await promptValorCasa('G20_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa >= 178.5) {
+                        recommendation = { type: 'UNDER', id: 'G20_1_UNDER', display: '#G20_1_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G20_1_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G33_EM_TESTES
+                if (!recomendacao_encontrada && 97 <= pontos_1p && pontos_1p <= 99 && pontos_ambos_1Q - pontos_ambos_2Q >= 2) {
+                    const valorCasa = await promptValorCasa('G33_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (pontos_1p * 2) - valorCasa <= 13) {
+                        recommendation = { type: 'UNDER', id: 'G33_EM_TESTES', display: '🌍 GERAL #G33_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G33_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G39_1_UNDER_MAX
+                if (!recomendacao_encontrada && 95 <= pontos_1p && pontos_1p <= 99) {
+                    const valorCasa = await promptValorCasa('G39_1_UNDER_MAX', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (pontos_1p * 2) - valorCasa <= 13 && valorCasa >= 192.5) {
+                        recommendation = { type: 'UNDER', id: 'G39_1_UNDER_MAX', display: '#G39_1_UNDER_MAX 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G39_1_UNDER_MAX - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G39_1_UNDER
+                if (!recomendacao_encontrada && 95 <= pontos_1p && pontos_1p <= 99) {
+                    const valorCasa = await promptValorCasa('G39_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (pontos_1p * 2) - valorCasa <= 13 && valorCasa >= 181.5) {
+                        recommendation = { type: 'UNDER', id: 'G39_1_UNDER', display: '#G39_1_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G39_1_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G41_BASE_EM_TESTES
+                if (!recomendacao_encontrada && 91 <= pontos_1p && pontos_1p <= 94 && (pontos_1p_fora - pontos_1p_casa >= 13 || pontos_1p_casa - pontos_1p_fora <= 3)) {
+                    const valorCasa = await promptValorCasa('G41_BASE_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G41_BASE_EM_TESTES', display: '🌍 GERAL #G41_BASE_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G41_BASE_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G8_FIXO
+                if (!recomendacao_encontrada && pontos_1p >= 100 && RTA >= 5.000 && pontos_1p_casa > pontos_1p_fora && pontos_1p_casa - pontos_1p_fora <= 2) {
+                    const valorCasa = await promptValorCasa('G8_FIXO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (valorCasa / 40) - RTA < -0.200) {
+                        recommendation = { type: 'OVER', id: 'G8_FIXO', display: '🌍 GERAL #G8_FIXO - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G8_FIXO - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G07_1_UNDER_MAX
+                if (!recomendacao_encontrada && pontos_1p >= 100 && RTA >= 5.000 && pontos_ambos_2Q <= pontos_ambos_1Q && pontos_1p_casa - pontos_1p_fora <= 16) {
+                    const valorCasa = await promptValorCasa('G07_1_UNDER_MAX', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const CALCULO_BASE_NEGATIVO = (valorCasa / 40) - RTA;
+                        if (CALCULO_BASE_NEGATIVO < 0.200 && (pontos_1p * 2) - valorCasa <= 8.5) {
+                            recommendation = { type: 'UNDER', id: 'G07_1_UNDER_MAX', display: '#G07_1_UNDER_MAX 📌', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #G07_1_UNDER_MAX - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                        }
+                    }
+                }
+
+                // G07_1_UNDER
+                if (!recomendacao_encontrada && pontos_1p >= 100 && RTA >= 5.000 && pontos_ambos_2Q <= pontos_ambos_1Q && pontos_1p_casa - pontos_1p_fora <= 16) {
+                    const valorCasa = await promptValorCasa('G07_1_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (valorCasa / 40) - RTA < 0.200) {
+                        recommendation = { type: 'UNDER', id: 'G07_1_UNDER', display: '#G07_1_UNDER 📌', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G07_1_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G7_FIXO
+                if (!recomendacao_encontrada && 100 <= pontos_1p && pontos_1p <= 114 && RTA >= 5.000 && pontos_1p_fora >= pontos_1p_casa && Math.abs(pontos_1p_fora - pontos_1p_casa) <= 8) {
+                    const valorCasa = await promptValorCasa('G7_FIXO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        const CALCULO_BASE_NEGATIVO = (valorCasa / 40) - RTA;
+                        if (CALCULO_BASE_NEGATIVO < 0.200 && valorCasa >= 196.5) {
+                            recommendation = { type: 'UNDER', id: 'G7_FIXO', display: '🌍 GERAL #G7_FIXO - UNDER', value: valorCasa };
+                            recomendacao_encontrada = true;
+                            output.push(`🔍 ANÁLISE PARA #G7_FIXO - VALOR CASA: ${valorCasa}`);
+                            output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                            output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                        }
+                    }
+                }
+
+                // G7_3_FIXO
+                if (!recomendacao_encontrada && pontos_1p >= 115 && RTA >= 5.000 && pontos_1p_fora >= pontos_1p_casa) {
+                    const valorCasa = await promptValorCasa('G7_3_FIXO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (valorCasa / 40) - RTA < 0.200 && valorCasa >= 196.5) {
+                        recommendation = { type: 'OVER', id: 'G7_3_FIXO', display: '🌍 GERAL #G7_3_FIXO - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G7_3_FIXO - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G34_EM_TESTES
+                if (!recomendacao_encontrada && 100 <= pontos_1p && pontos_1p <= 107 && pontos_1p_casa - pontos_1p_fora >= 17) {
+                    const valorCasa = await promptValorCasa('G34_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (valorCasa / 40) - RTA < 0.200) {
+                        recommendation = { type: 'UNDER', id: 'G34_EM_TESTES', display: '🌍 GERAL #G34_EM_TESTES - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G34_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G43_EM_TESTES
+                if (!recomendacao_encontrada && pontos_1p >= 106) {
+                    const valorCasa = await promptValorCasa('G43_EM_TESTES', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && (pontos_1p * 2) - valorCasa >= 10) {
+                        recommendation = { type: 'OVER', id: 'G43_EM_TESTES', display: '🌍 GERAL #G43_EM_TESTES - OVER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G43_EM_TESTES - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: OVER ${valorCasa}`);
+                    }
+                }
+
+                // G_TESTES_TUDO_2
+                if (!recomendacao_encontrada && pontos_ambos_2Q < pontos_ambos_1Q && pontos_ambos_2Q - pontos_ambos_1Q >= 2 && (pontos_1p_casa - pontos_1p_fora >= 13 || pontos_1p_fora - pontos_1p_casa >= 13)) {
+                    const valorCasa = await promptValorCasa('G_TESTES_TUDO_2', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G_TESTES_TUDO_2', display: '🌍 GERAL #G_TESTES_TUDO_2 - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G_TESTES_TUDO_2 - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G_TESTES_TUDO
+                if (!recomendacao_encontrada && (pontos_1p_casa - pontos_1p_fora >= 13 || pontos_1p_fora - pontos_1p_casa >= 13)) {
+                    const valorCasa = await promptValorCasa('G_TESTES_TUDO', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G_TESTES_TUDO', display: '🌍 GERAL #G_TESTES_TUDO - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G_TESTES_TUDO - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G_GERAL_UNDER
+                if (!recomendacao_encontrada && (pontos_1p_fora - pontos_1p_casa >= 2 || pontos_1p_casa - pontos_1p_fora >= 2)) {
+                    const valorCasa = await promptValorCasa('G_GERAL_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined && valorCasa - (pontos_1p * 2) >= 2) {
+                        recommendation = { type: 'UNDER', id: 'G_GERAL_UNDER', display: '🌍 GERAL #G_GERAL_UNDER - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G_GERAL_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+
+                // G_TUDO_UNDER (CATCH-ALL FINAL)
+                if (!recomendacao_encontrada) {
+                    const valorCasa = await promptValorCasa('G_TUDO_UNDER', pontos_1p, data);
+                    if (valorCasa !== null && valorCasa !== undefined) {
+                        recommendation = { type: 'UNDER', id: 'G_TUDO_UNDER', display: '🌍 GERAL #G_TUDO_UNDER - UNDER', value: valorCasa };
+                        recomendacao_encontrada = true;
+                        output.push(`🔍 ANÁLISE PARA #G_TUDO_UNDER - VALOR CASA: ${valorCasa}`);
+                        output.push(`   • Pontuação 1P: ${pontos_1p}`);
+                        output.push(`   • RTA: ${RTA.toFixed(2)}`);
+                        output.push(`   • ✅ RECOMENDAÇÃO: UNDER ${valorCasa}`);
+                    }
+                }
+            }
+
+            // ===== SE NENHUMA RECOMENDAÇÃO FOI ENCONTRADA =====
+            if (!recomendacao_encontrada) {
+                output.push('⚠️ NENHUMA RECOMENDAÇÃO ATENDE AOS CRITÉRIOS');
+                output.push('');
+            }
+
+            // ===== HISTÓRICO DOS TIMES =====
+            if (recomendacao_encontrada && recommendation) {
+                output.push('');
+                output.push('='.repeat(60));
+                output.push('📊 HISTÓRICO DOS TIMES NO SISTEMA');
+                output.push('='.repeat(60));
+                output.push('');
+                const histHome = getHistoricoTime(data.home_team);
+                const histAway = getHistoricoTime(data.away_team);
+                output.push(`🏠 ${data.home_team}: ${histHome.acertos}/${histHome.total} (${histHome.taxa.toFixed(1)}% de acerto)`);
+                output.push(`✈️ ${data.away_team}: ${histAway.acertos}/${histAway.total} (${histAway.taxa.toFixed(1)}% de acerto)`);
+
+                const recType = recommendation.type;
+                const histHomeFiltered = getHistoricoTime(data.home_team, recType);
+                const histAwayFiltered = getHistoricoTime(data.away_team, recType);
+                output.push('');
+                output.push(`📈 ESPECÍFICO POR TIPO DE RECOMENDAÇÃO (${recType}):`);
+                output.push(`   🏠 ${data.home_team}: ${histHomeFiltered.acertos}/${histHomeFiltered.total} (${histHomeFiltered.taxa.toFixed(1)}% de acerto quando a recomendação foi ${recType})`);
+                output.push(`   ✈️ ${data.away_team}: ${histAwayFiltered.acertos}/${histAwayFiltered.total} (${histAwayFiltered.taxa.toFixed(1)}% de acerto quando a recomendação foi ${recType})`);
+            }
+
+            output.push('');
+            output.push('='.repeat(60));
+            output.push(`📊 DADOS ANALISADOS:`);
+            output.push(`   • Total 1º Tempo: ${pontos_1p}`);
+            output.push(`   • 1º Quarto: ${pontos_1q}`);
+            output.push(`   • 2º Quarto: ${pontos_2q}`);
+            output.push(`   • RTA: ${RTA.toFixed(2)}`);
+
+            return {
+                output: output.join('\n'),
+                recommendation: recommendation,
+                data: data,
+                rawText: rawText,
+                pontos_1p: pontos_1p
+            };
+        }
+
+        // =============================================================
+        // 15. UI CONTROLLER
+        // =============================================================
+        const loginContainer = document.getElementById('loginContainer');
+        const appContainer = document.getElementById('appContainer');
+        const loginUser = document.getElementById('loginUser');
+        const loginPass = document.getElementById('loginPass');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginError = document.getElementById('loginError');
+        const loginLoading = document.getElementById('loginLoading');
+        const displayUser = document.getElementById('displayUser');
+        const sessionTimer = document.getElementById('sessionTimer');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        const outputArea = document.getElementById('outputArea');
+        const inputData = document.getElementById('inputData');
+        const btnAnalyzeNBA = document.getElementById('btnAnalyzeNBA');
+        const btnAnalyzeGeral = document.getElementById('btnAnalyzeGeral');
+        const searchTeamInput = document.getElementById('searchTeamInput');
+        const btnSearchTeam = document.getElementById('btnSearchTeam');
+        const searchResultsContent = document.getElementById('searchResultsContent');
+
+        // =============================================================
+        // 16. LOGIN
+        // =============================================================
+        async function doLogin() {
+            const user = loginUser.value.trim();
+            const pass = loginPass.value.trim();
+
+            if (!user || !pass) {
+                loginError.textContent = '❌ Preencha usuário e senha!';
+                return;
+            }
+
+            loginBtn.disabled = true;
+            loginBtn.textContent = '🔄 VERIFICANDO...';
+            loginLoading.textContent = '🔄 Verificando no Firebase...';
+            loginError.textContent = '';
+
+            try {
+                const result = await verificarLogin(user, pass);
+                if (result.autorizado) {
+                    await loginSuccess(user);
+                } else {
+                    let msg = '❌ ';
+                    if (result.motivo === 'USUARIO_INEXISTENTE' || result.motivo === 'SENHA_INCORRETA') {
+                        msg += 'Usuário ou senha inválidos!';
+                    } else if (result.motivo.startsWith('BLOQUEADO_')) {
+                        msg += 'SEU ACESSO ESTÁ BLOQUEADO! Entre em contato com o administrador.';
+                    } else if (result.motivo === 'DEVICE_DIFERENTE') {
+                        msg += 'ACESSO NEGADO! Esta conta está vinculada a outro dispositivo.';
+                    } else if (result.motivo === 'SEM_INTERNET') {
+                        msg += 'SEM CONEXÃO COM A INTERNET!';
+                    } else {
+                        msg += `Erro na verificação: ${result.motivo}`;
+                    }
+                    loginError.textContent = msg;
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = '🔓 ENTRAR NO SISTEMA';
+                    loginLoading.textContent = '';
+                }
+            } catch (error) {
+                loginError.textContent = `❌ Erro: ${error.message}`;
+                loginBtn.disabled = false;
+                loginBtn.textContent = '🔓 ENTRAR NO SISTEMA';
+                loginLoading.textContent = '';
+            }
+        }
+
+        async function loginSuccess(user) {
+            currentUser = user;
+            
+            // Mostra loading enquanto carrega os dados
+            outputArea.innerHTML = `
+                <div class="loading-indicator">
+                    <div class="spinner"></div>
+                    <div>🔄 Carregando dados do arquivo basketball_analysis.db...</div>
+                    <div style="font-size:12px; color:#8aa8c7; margin-top:10px;">Isso pode levar alguns segundos...</div>
+                </div>
+            `;
+
+            loginContainer.style.display = 'none';
+            appContainer.style.display = 'block';
+            displayUser.textContent = user;
+            sessionStart = Date.now();
+            startSessionTimer();
+            loginBtn.disabled = false;
+            loginBtn.textContent = '🔓 ENTRAR NO SISTEMA';
+            loginLoading.textContent = '';
+            loginError.textContent = '';
+
+            // Carregar dados do arquivo SQLite
+            try {
+                await carregarDB();
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+            }
+            
+            // Verificar se os dados foram carregados
+            if (db.jogos.length > 0) {
+                console.log(`✅ Dados carregados: ${db.jogos.length} jogos`);
+                outputArea.textContent = `✅ Bem-vindo, ${user}! Sistema carregado com ${db.jogos.length} jogos do arquivo basketball_analysis.db. Aguardando análise...`;
+                atualizarStatusDB('loaded', `${db.jogos.length} jogos (SQLite)`);
+            } else {
+                console.warn('⚠️ Nenhum dado carregado');
+                outputArea.textContent = `⚠️ Bem-vindo, ${user}! Nenhum dado foi carregado. Verifique se o arquivo basketball_analysis.db está no diretório e contém a tabela "jogos".`;
+                atualizarStatusDB('error', 'Sem dados');
+            }
+            
+            carregarTimesBuscar();
+            inputData.value = `Indiana Pacers
+79 <- TOTAL DO INDIANA NO 1 PERIODO
+34 <- PONTOS NO 1 QUARTO
+45 <- PONTOS NO 2 QUARTO
+
+Miami Heat
+75 <- TOTAL DO MIAMI NO 1 PERIODO
+36 <- PONTOS NO 1 QUARTO
+39 <- PONTOS NO 2 QUARTO`;
+        }
+
+        function startSessionTimer() {
+            if (sessionInterval) clearInterval(sessionInterval);
+            sessionInterval = setInterval(() => {
+                if (!sessionStart) return;
+                const elapsed = (Date.now() - sessionStart) / 1000;
+                const remaining = TEMPO_EXPIRACAO_LOGIN * 3600 - elapsed;
+                if (remaining <= 0) {
+                    sessionTimer.textContent = '⏱️ Sessão: Expirada';
+                    logoutUser();
+                    return;
+                }
+                const h = Math.floor(remaining / 3600);
+                const m = Math.floor((remaining % 3600) / 60);
+                sessionTimer.textContent = `⏱️ Sessão: ${h}h ${m}min`;
+            }, 1000);
+        }
+
+        function logoutUser() {
+            if (sessionInterval) clearInterval(sessionInterval);
+            currentUser = null;
+            sessionStart = null;
+            appContainer.style.display = 'none';
+            loginContainer.style.display = 'block';
+            loginPass.value = '';
+            loginBtn.disabled = false;
+            loginBtn.textContent = '🔓 ENTRAR NO SISTEMA';
+            loginLoading.textContent = '';
+            loginError.textContent = '';
+            sessionTimer.textContent = '⏱️ Sessão: —';
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.querySelector('[data-tab="tabAnalysis"]').classList.add('active');
+            document.getElementById('tabAnalysis').classList.add('active');
+        }
+
+        loginBtn.addEventListener('click', doLogin);
+        loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+        loginUser.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+        logoutBtn.addEventListener('click', logoutUser);
+
+        // =============================================================
+        // 17. TABS
+        // =============================================================
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                const target = document.getElementById(this.dataset.tab);
+                if (target) target.classList.add('active');
+            });
+        });
+
+        // =============================================================
+        // 18. ANÁLISE
+        // =============================================================
+        async function runAnalysis(tipo) {
+            const rawText = inputData.value.trim();
+            if (!rawText) {
+                outputArea.textContent = '❌ Insira os dados do jogo.';
+                return;
+            }
+
+            btnAnalyzeNBA.disabled = true;
+            btnAnalyzeGeral.disabled = true;
+            outputArea.textContent = '🔄 Analisando...';
+
+            try {
+                const result = await performAnalysis(rawText, tipo);
+                if (result.error) {
+                    outputArea.textContent = `❌ ${result.error}`;
+                } else {
+                    outputArea.textContent = result.output;
+                }
+            } catch (error) {
+                outputArea.textContent = `❌ Erro: ${error.message}`;
+            }
+
+            btnAnalyzeNBA.disabled = false;
+            btnAnalyzeGeral.disabled = false;
+        }
+
+        btnAnalyzeNBA.addEventListener('click', function() { runAnalysis('nba'); });
+        btnAnalyzeGeral.addEventListener('click', function() { runAnalysis('geral'); });
+
+        // =============================================================
+        // 19. BUSCAR TIMES
+        // =============================================================
+        function carregarTimesBuscar() {
+            const times = getTodosTimes();
+            if (times.length > 0) {
+                const datalist = document.createElement('datalist');
+                datalist.id = 'teamDatalist';
+                times.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t;
+                    datalist.appendChild(opt);
+                });
+                searchTeamInput.setAttribute('list', 'teamDatalist');
+                const old = document.getElementById('teamDatalist');
+                if (old) old.remove();
+                document.body.appendChild(datalist);
+            }
+        }
+
+        function buscarTime() {
+            const timeNome = searchTeamInput.value.trim();
+            if (!timeNome) {
+                alert('Digite o nome de um time para buscar!');
+                return;
+            }
+
+            const historico = getHistoricoTime(timeNome);
+            const jogos = historico.jogos;
+
+            if (jogos.length === 0) {
+                searchResultsContent.innerHTML = `
+                    <div style="text-align:center; padding:40px; color:#8aa8c7;">
+                        ❌ Nenhum jogo encontrado para o time: <strong>${timeNome}</strong>
+                        <br><small>Verifique se o nome está correto.</small>
+                    </div>
+                `;
+                return;
+            }
+
+            const total = jogos.length;
+            const acertos = jogos.filter(j => j.correct === 1).length;
+            const erros = total - acertos;
+            const taxa = (acertos / total * 100);
+
+            const overJogos = jogos.filter(j => j.recommendation_type === 'OVER');
+            const underJogos = jogos.filter(j => j.recommendation_type === 'UNDER');
+            const overAcertos = overJogos.filter(j => j.correct === 1).length;
+            const underAcertos = underJogos.filter(j => j.correct === 1).length;
+
+            let html = `
+                <div class="team-stats">
+                    <div class="stat-box blue"><span class="number">${total}</span><span class="label">📊 TOTAL DE JOGOS</span></div>
+                    <div class="stat-box green"><span class="number">${acertos}</span><span class="label">✅ ACERTOS</span></div>
+                    <div class="stat-box red"><span class="number">${erros}</span><span class="label">❌ ERROS</span></div>
+                    <div class="stat-box gold"><span class="number">${taxa.toFixed(1)}%</span><span class="label">🎯 TAXA GERAL</span></div>
+                </div>
+                <div style="display:flex; gap:20px; margin-bottom:15px; flex-wrap:wrap;">
+                    <span style="color:#e74c3c;">🔥 OVER: ${overAcertos}/${overJogos.length} (${overJogos.length > 0 ? (overAcertos/overJogos.length*100).toFixed(0) : 0}%)</span>
+                    <span style="color:#3498db;">💧 UNDER: ${underAcertos}/${underJogos.length} (${underJogos.length > 0 ? (underAcertos/underJogos.length*100).toFixed(0) : 0}%)</span>
+                </div>
+                <h3 style="color:#f39c12; margin-bottom:12px;">🏀 CONFRONTOS DO ${timeNome.toUpperCase()}</h3>
+                <div class="games-table-wrap">
+                    <table class="games-table">
+                        <thead>
+                            <tr>
+                                <th>DATA</th>
+                                <th>ADVERSÁRIO</th>
+                                <th>C/V</th>
+                                <th>REC.</th>
+                                <th>RESULTADO</th>
+                                <th>VALOR</th>
+                                <th>OVER/UNDER</th>
+                                <th>PLACAR</th>
+                                <th>Q1</th>
+                                <th>Q2</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            jogos.forEach(j => {
+                const isHome = j.home_team === timeNome;
+                const adversario = isHome ? j.away_team : j.home_team;
+                const cv = isHome ? '🏠 CASA' : '✈️ FORA';
+                const cvClass = isHome ? 'badge-casa' : 'badge-fora';
+
+                let resultClass = 'badge-pending';
+                let resultText = '❓ NÃO MARCADO';
+                if (j.correct === 1) { resultClass = 'badge-acertou'; resultText = '✅ ACERTOU'; }
+                if (j.correct === 0) { resultClass = 'badge-errou'; resultText = '❌ ERROU'; }
+
+                const ouClass = j.recommendation_type === 'OVER' ? 'badge-over' : 'badge-under';
+                const dataStr = j.timestamp ? new Date(j.timestamp).toLocaleDateString('pt-BR') : 'N/A';
+
+                html += `
+                    <tr>
+                        <td>${dataStr}</td>
+                        <td><strong>${adversario}</strong></td>
+                        <td><span class="badge ${cvClass}">${cv}</span></td>
+                        <td>${j.recommendation_type || 'N/A'}</td>
+                        <td><span class="badge ${resultClass}">${resultText}</span></td>
+                        <td>${j.recommendation_value || 'N/A'}</td>
+                        <td><span class="badge ${ouClass}">${j.recommendation_type || 'N/A'}</span></td>
+                        <td>${j.total_home}-${j.total_away}</td>
+                        <td>${j.quarter1_home || 0}-${j.quarter1_away || 0}</td>
+                        <td>${j.quarter2_home || 0}-${j.quarter2_away || 0}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top:12px; color:#8aa8c7; font-size:12px;">
+                    📌 Total: ${total} jogos encontrados
+                </div>
+            `;
+
+            searchResultsContent.innerHTML = html;
+        }
+
+        btnSearchTeam.addEventListener('click', buscarTime);
+        searchTeamInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') buscarTime(); });
+
+        // =============================================================
+        // 20. INICIALIZAÇÃO
+        // =============================================================
+        // Carrega dados iniciais
+        carregarDB().then(() => {
+            console.log(`🏀 Sistema de Basquete Web carregado!`);
+            console.log(`📊 Banco de dados: ${db.jogos.length} jogos carregados`);
+            if (db.jogos.length > 0) {
+                console.log('📋 Primeiros 3 jogos:', db.jogos.slice(0, 3));
+            }
+        });
+
+        // Recarregar lista de times periodicamente
+        setInterval(() => { 
+            if (currentUser) carregarTimesBuscar(); 
+        }, 30000);
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeModal();
+        });
+
+    })();
+    </script>
+</body>
+</html>
+
+
+###v3
