@@ -4,8 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>🏀 Sistema de Análise - Basquete</title>
-    <!-- SQL.js para ler SQLite no navegador -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -419,6 +417,7 @@
         }
         .db-status.loaded { border-color: #27ae60; color: #27ae60; }
         .db-status.error { border-color: #e74c3c; color: #e74c3c; }
+        .db-status.loading { border-color: #f39c12; color: #f39c12; }
     </style>
 </head>
 <body>
@@ -552,158 +551,32 @@ Miami Heat
         let sessionInterval = null;
         let sessionStart = null;
         let dbLoaded = false;
-        let SQL = null;
 
         // =============================================================
-        // 3. CARREGAR SQL.JS
+        // 3. CARREGAR DADOS DO JSON
         // =============================================================
-        function loadSQL() {
-            return new Promise((resolve, reject) => {
-                if (typeof window.initSqlJs !== 'undefined') {
-                    window.initSqlJs({
-                        locateFile: function(filename) {
-                            return 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + filename;
-                        }
-                    }).then(function(sql) {
-                        SQL = sql;
-                        resolve();
-                    }).catch(reject);
-                } else {
-                    // Aguarda o script carregar
-                    const checkSQL = setInterval(function() {
-                        if (typeof window.initSqlJs !== 'undefined') {
-                            clearInterval(checkSQL);
-                            window.initSqlJs({
-                                locateFile: function(filename) {
-                                    return 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + filename;
-                                }
-                            }).then(function(sql) {
-                                SQL = sql;
-                                resolve();
-                            }).catch(reject);
-                        }
-                    }, 500);
-                    // Timeout após 10 segundos
-                    setTimeout(() => {
-                        clearInterval(checkSQL);
-                        reject(new Error('Timeout loading SQL.js'));
-                    }, 10000);
-                }
-            });
-        }
-
-        // =============================================================
-        // 4. CARREGAR DADOS DO SQLITE
-        // =============================================================
-        async function carregarDadosSQLite() {
+        async function carregarDadosJSON() {
             try {
-                console.log('🔄 Carregando SQL.js...');
-                await loadSQL();
-                console.log('✅ SQL.js carregado com sucesso!');
-
-                // Tenta diferentes caminhos para encontrar o arquivo
-                const caminhos = [
-                    'basketball_analysis.db',
-                    './basketball_analysis.db',
-                    '/basketball_analysis.db',
-                    './assets/basketball_analysis.db',
-                    '../basketball_analysis.db'
-                ];
-
-                let arquivoEncontrado = false;
-                let ultimoErro = null;
-
-                for (const caminho of caminhos) {
-                    try {
-                        console.log(`🔄 Tentando carregar: ${caminho}`);
-                        const response = await fetch(caminho);
-                        
-                        if (response.ok) {
-                            const arrayBuffer = await response.arrayBuffer();
-                            const uint8Array = new Uint8Array(arrayBuffer);
-                            
-                            if (uint8Array.length > 0) {
-                                console.log(`✅ Arquivo encontrado em: ${caminho} (${uint8Array.length} bytes)`);
-                                
-                                // Tenta abrir o banco de dados
-                                const dbSQL = new SQL.Database(uint8Array);
-                                console.log('✅ Banco SQLite aberto com sucesso!');
-
-                                // Verifica se a tabela jogos existe
-                                const tablesResult = dbSQL.exec("SELECT name FROM sqlite_master WHERE type='table';");
-                                console.log('📋 Tabelas encontradas:', tablesResult);
-
-                                // Busca dados da tabela jogos
-                                const query = `
-                                    SELECT 
-                                        id, 
-                                        timestamp, 
-                                        home_team, 
-                                        away_team, 
-                                        total_home, 
-                                        total_away, 
-                                        quarter1_home, 
-                                        quarter1_away, 
-                                        quarter2_home, 
-                                        quarter2_away, 
-                                        recommendation_type, 
-                                        recommendation_value, 
-                                        recommendation_text, 
-                                        correct 
-                                    FROM jogos 
-                                    ORDER BY id
-                                `;
-
-                                const result = dbSQL.exec(query);
-                                
-                                if (result.length === 0) {
-                                    console.warn('⚠️ Nenhum dado encontrado na tabela jogos');
-                                    arquivoEncontrado = false;
-                                    continue;
-                                }
-
-                                // Converter para array de objetos
-                                const columns = result[0].columns;
-                                const values = result[0].values;
-                                
-                                db.jogos = values.map(row => {
-                                    const obj = {};
-                                    columns.forEach((col, idx) => {
-                                        obj[col] = row[idx];
-                                    });
-                                    return obj;
-                                });
-
-                                dbLoaded = true;
-                                arquivoEncontrado = true;
-                                console.log(`✅ Dados carregados do SQLite: ${db.jogos.length} jogos`);
-                                
-                                // Salvar no localStorage como cache
-                                try {
-                                    localStorage.setItem('basketball_db_cache', JSON.stringify(db.jogos));
-                                    localStorage.setItem('basketball_db_timestamp', Date.now().toString());
-                                    localStorage.setItem('basketball_db_source', caminho);
-                                } catch(e) {}
-                                
-                                atualizarStatusDB('loaded', `${db.jogos.length} jogos (SQLite)`);
-                                return true;
-                            }
-                        }
-                    } catch (error) {
-                        ultimoErro = error;
-                        console.warn(`❌ Falha ao carregar ${caminho}:`, error.message);
-                    }
+                console.log('🔄 Carregando dados do JSON...');
+                
+                const response = await fetch('dados.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
-
-                if (!arquivoEncontrado) {
-                    console.warn('⚠️ Nenhum caminho funcionou para o arquivo SQLite');
-                    console.log('📊 Usando dados de exemplo...');
-                    carregarDadosExemplo();
-                    return false;
+                
+                const data = await response.json();
+                
+                if (data && Array.isArray(data) && data.length > 0) {
+                    db.jogos = data;
+                    dbLoaded = true;
+                    console.log(`✅ Dados carregados do JSON: ${db.jogos.length} jogos`);
+                    atualizarStatusDB('loaded', `${db.jogos.length} jogos (JSON)`);
+                    return true;
+                } else {
+                    throw new Error('Dados inválidos ou vazios');
                 }
-
             } catch (error) {
-                console.error('❌ Erro ao carregar SQLite:', error.message);
+                console.error('❌ Erro ao carregar JSON:', error.message);
                 console.log('📊 Usando dados de exemplo...');
                 carregarDadosExemplo();
                 return false;
@@ -711,55 +584,27 @@ Miami Heat
         }
 
         // =============================================================
-        // 5. DADOS DE EXEMPLO (fallback)
+        // 4. DADOS DE EXEMPLO (fallback)
         // =============================================================
         function carregarDadosExemplo() {
             db.jogos = [
                 { id: 1, timestamp: '2026-06-28 20:15:00', home_team: 'Indiana Pacers', away_team: 'Miami Heat', total_home: 79, total_away: 75, quarter1_home: 34, quarter1_away: 36, quarter2_home: 45, quarter2_away: 39, recommendation_type: 'OVER', recommendation_value: '154.5', recommendation_text: '#N1 - OVER 154.5', correct: 1 },
                 { id: 2, timestamp: '2026-06-27 22:30:00', home_team: 'Los Angeles Lakers', away_team: 'Boston Celtics', total_home: 68, total_away: 72, quarter1_home: 30, quarter1_away: 35, quarter2_home: 38, quarter2_away: 37, recommendation_type: 'UNDER', recommendation_value: '138.5', recommendation_text: '#G1_FIXO - UNDER 138.5', correct: 0 },
                 { id: 3, timestamp: '2026-06-26 19:45:00', home_team: 'Chicago Bulls', away_team: 'New York Knicks', total_home: 82, total_away: 78, quarter1_home: 40, quarter1_away: 38, quarter2_home: 42, quarter2_away: 40, recommendation_type: 'OVER', recommendation_value: '159.5', recommendation_text: '#G19_BASE_EM_TESTES - OVER 159.5', correct: 1 },
-                { id: 4, timestamp: '2026-06-25 21:00:00', home_team: 'Golden State Warriors', away_team: 'Phoenix Suns', total_home: 92, total_away: 88, quarter1_home: 45, quarter1_away: 42, quarter2_home: 47, quarter2_away: 46, recommendation_type: 'OVER', recommendation_value: '179.5', recommendation_text: '#G6_FIXO - OVER 179.5', correct: 1 },
-                { id: 5, timestamp: '2026-06-24 20:00:00', home_team: 'Miami Heat', away_team: 'Indiana Pacers', total_home: 75, total_away: 79, quarter1_home: 36, quarter1_away: 34, quarter2_home: 39, quarter2_away: 45, recommendation_type: 'UNDER', recommendation_value: '156.5', recommendation_text: '#N2 - UNDER 156.5', correct: 1 },
-                { id: 6, timestamp: '2026-06-23 23:15:00', home_team: 'Boston Celtics', away_team: 'Los Angeles Lakers', total_home: 72, total_away: 68, quarter1_home: 35, quarter1_away: 30, quarter2_home: 37, quarter2_away: 38, recommendation_type: 'UNDER', recommendation_value: '141.5', recommendation_text: '#G1_1_3_UNDER - UNDER 141.5', correct: 1 },
-                { id: 7, timestamp: '2026-06-22 18:30:00', home_team: 'New York Knicks', away_team: 'Chicago Bulls', total_home: 78, total_away: 82, quarter1_home: 38, quarter1_away: 40, quarter2_home: 40, quarter2_away: 42, recommendation_type: 'OVER', recommendation_value: '157.5', recommendation_text: '#G3_FIXO - OVER 157.5', correct: 0 },
-                { id: 8, timestamp: '2026-06-21 20:45:00', home_team: 'Phoenix Suns', away_team: 'Golden State Warriors', total_home: 88, total_away: 92, quarter1_home: 42, quarter1_away: 45, quarter2_home: 46, quarter2_away: 47, recommendation_type: 'UNDER', recommendation_value: '181.5', recommendation_text: '#G07_1_UNDER - UNDER 181.5', correct: 0 },
-                { id: 9, timestamp: '2026-06-20 22:00:00', home_team: 'Denver Nuggets', away_team: 'Milwaukee Bucks', total_home: 65, total_away: 69, quarter1_home: 30, quarter1_away: 33, quarter2_home: 35, quarter2_away: 36, recommendation_type: 'UNDER', recommendation_value: '135.5', recommendation_text: '#G1_1_FIXO - UNDER 135.5', correct: 1 },
-                { id: 10, timestamp: '2026-06-19 19:15:00', home_team: 'Milwaukee Bucks', away_team: 'Denver Nuggets', total_home: 69, total_away: 65, quarter1_home: 33, quarter1_away: 30, quarter2_home: 36, quarter2_away: 35, recommendation_type: 'OVER', recommendation_value: '136.5', recommendation_text: '#G2_FIXO - OVER 136.5', correct: 0 },
-                { id: 11, timestamp: '2026-06-18 21:30:00', home_team: 'Dallas Mavericks', away_team: 'San Antonio Spurs', total_home: 74, total_away: 78, quarter1_home: 35, quarter1_away: 38, quarter2_home: 39, quarter2_away: 40, recommendation_type: 'UNDER', recommendation_value: '152.5', recommendation_text: '#G04_1_UNDER - UNDER 152.5', correct: 1 },
-                { id: 12, timestamp: '2026-06-17 20:00:00', home_team: 'San Antonio Spurs', away_team: 'Dallas Mavericks', total_home: 78, total_away: 74, quarter1_home: 38, quarter1_away: 35, quarter2_home: 40, quarter2_away: 39, recommendation_type: 'OVER', recommendation_value: '151.5', recommendation_text: '#G21_1_OVER - OVER 151.5', correct: 0 },
             ];
             dbLoaded = true;
             atualizarStatusDB('error', 'Usando dados de exemplo');
-            try {
-                localStorage.setItem('basketball_db_arquivo', JSON.stringify(db.jogos));
-            } catch(e) {}
         }
 
         // =============================================================
-        // 6. CARREGAR DB
+        // 5. CARREGAR DB
         // =============================================================
         async function carregarDB() {
-            // Primeiro tenta carregar do cache do localStorage
-            try {
-                const cached = localStorage.getItem('basketball_db_cache');
-                const timestamp = localStorage.getItem('basketball_db_timestamp');
-                if (cached && timestamp) {
-                    const age = Date.now() - parseInt(timestamp);
-                    // Usa cache se tiver menos de 1 hora
-                    if (age < 3600000) {
-                        db.jogos = JSON.parse(cached);
-                        dbLoaded = true;
-                        console.log(`📊 Dados carregados do cache: ${db.jogos.length} jogos`);
-                        atualizarStatusDB('loaded', `${db.jogos.length} jogos (cache)`);
-                        return;
-                    }
-                }
-            } catch(e) {}
-
-            // Tenta carregar do arquivo SQLite
-            const success = await carregarDadosSQLite();
+            atualizarStatusDB('loading', 'Carregando...');
+            
+            // Tenta carregar do JSON
+            const success = await carregarDadosJSON();
             if (!success) {
-                // Se falhou, usa dados de exemplo
                 carregarDadosExemplo();
             }
         }
@@ -771,10 +616,11 @@ Miami Heat
             el.className = 'db-status';
             if (status === 'loaded') el.classList.add('loaded');
             if (status === 'error') el.classList.add('error');
+            if (status === 'loading') el.classList.add('loading');
         }
 
         // =============================================================
-        // 7. FUNÇÕES DE AUTENTICAÇÃO
+        // 6. FUNÇÕES DE AUTENTICAÇÃO
         // =============================================================
         function getDeviceId() {
             try {
@@ -890,7 +736,7 @@ Miami Heat
         }
 
         // =============================================================
-        // 8. DICIONÁRIO DE FAIXAS
+        // 7. DICIONÁRIO DE FAIXAS
         // =============================================================
         const faixasPorIdentificador = {
             "N1": [0, 103], "N2": [112, 119], "N3": [112, 119], "N4": [112, 119],
@@ -931,7 +777,7 @@ Miami Heat
         };
 
         // =============================================================
-        // 9. PARSER
+        // 8. PARSER
         // =============================================================
         const Parser = {
             parse(rawText) {
@@ -958,7 +804,7 @@ Miami Heat
         };
 
         // =============================================================
-        // 10. FUNÇÕES DE HISTÓRICO
+        // 9. FUNÇÕES DE HISTÓRICO
         // =============================================================
         function getHistoricoTime(timeNome, recTypeFilter = null) {
             let jogos = db.jogos.filter(j => j.home_team === timeNome || j.away_team === timeNome);
@@ -1023,7 +869,7 @@ Miami Heat
         }
 
         // =============================================================
-        // 11. FUNÇÕES DOS CARDS
+        // 10. FUNÇÕES DOS CARDS
         // =============================================================
         function criarCardTimeCompleto(homeTeam, awayTeam, tipoRecomendacao, tituloCard, identificadorAtual) {
             const faixa = faixasPorIdentificador[identificadorAtual] || [0, 999];
@@ -1158,7 +1004,7 @@ Miami Heat
         }
 
         // =============================================================
-        // 12. getEffectiveValue
+        // 11. getEffectiveValue
         // =============================================================
         function getEffectiveValue(valorCasa, tipo) {
             if (valorCasa === null || valorCasa === undefined) return null;
@@ -1172,7 +1018,7 @@ Miami Heat
         }
 
         // =============================================================
-        // 13. MODAL
+        // 12. MODAL
         // =============================================================
         let modalResolve = null;
 
@@ -1243,7 +1089,7 @@ Miami Heat
         }
 
         // =============================================================
-        // 14. FUNÇÃO DE ANÁLISE PRINCIPAL
+        // 13. FUNÇÃO DE ANÁLISE PRINCIPAL (COMPLETA)
         // =============================================================
         async function performAnalysis(rawText, tipo) {
             const data = Parser.parse(rawText);
@@ -2491,7 +2337,7 @@ Miami Heat
         }
 
         // =============================================================
-        // 15. UI CONTROLLER
+        // 14. UI CONTROLLER
         // =============================================================
         const loginContainer = document.getElementById('loginContainer');
         const appContainer = document.getElementById('appContainer');
@@ -2513,7 +2359,7 @@ Miami Heat
         const searchResultsContent = document.getElementById('searchResultsContent');
 
         // =============================================================
-        // 16. LOGIN
+        // 15. LOGIN
         // =============================================================
         async function doLogin() {
             const user = loginUser.value.trim();
@@ -2566,8 +2412,8 @@ Miami Heat
             outputArea.innerHTML = `
                 <div class="loading-indicator">
                     <div class="spinner"></div>
-                    <div>🔄 Carregando dados do arquivo basketball_analysis.db...</div>
-                    <div style="font-size:12px; color:#8aa8c7; margin-top:10px;">Isso pode levar alguns segundos...</div>
+                    <div>🔄 Carregando dados...</div>
+                    <div style="font-size:12px; color:#8aa8c7; margin-top:10px;">Aguarde...</div>
                 </div>
             `;
 
@@ -2581,7 +2427,7 @@ Miami Heat
             loginLoading.textContent = '';
             loginError.textContent = '';
 
-            // Carregar dados do arquivo SQLite
+            // Carregar dados do JSON
             try {
                 await carregarDB();
             } catch (error) {
@@ -2591,11 +2437,11 @@ Miami Heat
             // Verificar se os dados foram carregados
             if (db.jogos.length > 0) {
                 console.log(`✅ Dados carregados: ${db.jogos.length} jogos`);
-                outputArea.textContent = `✅ Bem-vindo, ${user}! Sistema carregado com ${db.jogos.length} jogos do arquivo basketball_analysis.db. Aguardando análise...`;
-                atualizarStatusDB('loaded', `${db.jogos.length} jogos (SQLite)`);
+                outputArea.textContent = `✅ Bem-vindo, ${user}! Sistema carregado com ${db.jogos.length} jogos. Aguardando análise...`;
+                atualizarStatusDB('loaded', `${db.jogos.length} jogos (JSON)`);
             } else {
                 console.warn('⚠️ Nenhum dado carregado');
-                outputArea.textContent = `⚠️ Bem-vindo, ${user}! Nenhum dado foi carregado. Verifique se o arquivo basketball_analysis.db está no diretório e contém a tabela "jogos".`;
+                outputArea.textContent = `⚠️ Bem-vindo, ${user}! Nenhum dado foi carregado.`;
                 atualizarStatusDB('error', 'Sem dados');
             }
             
@@ -2652,7 +2498,7 @@ Miami Heat
         logoutBtn.addEventListener('click', logoutUser);
 
         // =============================================================
-        // 17. TABS
+        // 16. TABS
         // =============================================================
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -2665,7 +2511,7 @@ Miami Heat
         });
 
         // =============================================================
-        // 18. ANÁLISE
+        // 17. ANÁLISE
         // =============================================================
         async function runAnalysis(tipo) {
             const rawText = inputData.value.trim();
@@ -2697,7 +2543,7 @@ Miami Heat
         btnAnalyzeGeral.addEventListener('click', function() { runAnalysis('geral'); });
 
         // =============================================================
-        // 19. BUSCAR TIMES
+        // 18. BUSCAR TIMES
         // =============================================================
         function carregarTimesBuscar() {
             const times = getTodosTimes();
@@ -2823,9 +2669,8 @@ Miami Heat
         searchTeamInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') buscarTime(); });
 
         // =============================================================
-        // 20. INICIALIZAÇÃO
+        // 19. INICIALIZAÇÃO
         // =============================================================
-        // Carrega dados iniciais
         carregarDB().then(() => {
             console.log(`🏀 Sistema de Basquete Web carregado!`);
             console.log(`📊 Banco de dados: ${db.jogos.length} jogos carregados`);
@@ -2834,7 +2679,6 @@ Miami Heat
             }
         });
 
-        // Recarregar lista de times periodicamente
         setInterval(() => { 
             if (currentUser) carregarTimesBuscar(); 
         }, 30000);
