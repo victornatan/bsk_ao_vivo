@@ -543,7 +543,6 @@ Miami Heat
         // =============================================================
         const FIREBASE_URL = "https://aovivoexe-default-rtdb.firebaseio.com/";
         const TEMPO_EXPIRACAO_LOGIN = 6;
-        const DB_FILE_PATH = "basketball_analysis.db";
 
         // =============================================================
         // 2. BANCO DE DADOS
@@ -602,76 +601,106 @@ Miami Heat
                 await loadSQL();
                 console.log('✅ SQL.js carregado com sucesso!');
 
-                console.log(`🔄 Baixando arquivo: ${DB_FILE_PATH}`);
-                const response = await fetch(DB_FILE_PATH);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                // Tenta diferentes caminhos para encontrar o arquivo
+                const caminhos = [
+                    'basketball_analysis.db',
+                    './basketball_analysis.db',
+                    '/basketball_analysis.db',
+                    './assets/basketball_analysis.db',
+                    '../basketball_analysis.db'
+                ];
+
+                let arquivoEncontrado = false;
+                let ultimoErro = null;
+
+                for (const caminho of caminhos) {
+                    try {
+                        console.log(`🔄 Tentando carregar: ${caminho}`);
+                        const response = await fetch(caminho);
+                        
+                        if (response.ok) {
+                            const arrayBuffer = await response.arrayBuffer();
+                            const uint8Array = new Uint8Array(arrayBuffer);
+                            
+                            if (uint8Array.length > 0) {
+                                console.log(`✅ Arquivo encontrado em: ${caminho} (${uint8Array.length} bytes)`);
+                                
+                                // Tenta abrir o banco de dados
+                                const dbSQL = new SQL.Database(uint8Array);
+                                console.log('✅ Banco SQLite aberto com sucesso!');
+
+                                // Verifica se a tabela jogos existe
+                                const tablesResult = dbSQL.exec("SELECT name FROM sqlite_master WHERE type='table';");
+                                console.log('📋 Tabelas encontradas:', tablesResult);
+
+                                // Busca dados da tabela jogos
+                                const query = `
+                                    SELECT 
+                                        id, 
+                                        timestamp, 
+                                        home_team, 
+                                        away_team, 
+                                        total_home, 
+                                        total_away, 
+                                        quarter1_home, 
+                                        quarter1_away, 
+                                        quarter2_home, 
+                                        quarter2_away, 
+                                        recommendation_type, 
+                                        recommendation_value, 
+                                        recommendation_text, 
+                                        correct 
+                                    FROM jogos 
+                                    ORDER BY id
+                                `;
+
+                                const result = dbSQL.exec(query);
+                                
+                                if (result.length === 0) {
+                                    console.warn('⚠️ Nenhum dado encontrado na tabela jogos');
+                                    arquivoEncontrado = false;
+                                    continue;
+                                }
+
+                                // Converter para array de objetos
+                                const columns = result[0].columns;
+                                const values = result[0].values;
+                                
+                                db.jogos = values.map(row => {
+                                    const obj = {};
+                                    columns.forEach((col, idx) => {
+                                        obj[col] = row[idx];
+                                    });
+                                    return obj;
+                                });
+
+                                dbLoaded = true;
+                                arquivoEncontrado = true;
+                                console.log(`✅ Dados carregados do SQLite: ${db.jogos.length} jogos`);
+                                
+                                // Salvar no localStorage como cache
+                                try {
+                                    localStorage.setItem('basketball_db_cache', JSON.stringify(db.jogos));
+                                    localStorage.setItem('basketball_db_timestamp', Date.now().toString());
+                                    localStorage.setItem('basketball_db_source', caminho);
+                                } catch(e) {}
+                                
+                                atualizarStatusDB('loaded', `${db.jogos.length} jogos (SQLite)`);
+                                return true;
+                            }
+                        }
+                    } catch (error) {
+                        ultimoErro = error;
+                        console.warn(`❌ Falha ao carregar ${caminho}:`, error.message);
+                    }
                 }
 
-                const arrayBuffer = await response.arrayBuffer();
-                const uint8Array = new Uint8Array(arrayBuffer);
-                
-                console.log(`📄 Arquivo carregado: ${uint8Array.length} bytes`);
-
-                // Criar banco de dados a partir do arquivo
-                const dbSQL = new SQL.Database(uint8Array);
-                console.log('✅ Banco SQLite aberto com sucesso!');
-
-                // Verificar tabelas
-                const tablesResult = dbSQL.exec("SELECT name FROM sqlite_master WHERE type='table';");
-                console.log('📋 Tabelas encontradas:', tablesResult);
-
-                // Buscar dados da tabela jogos
-                const query = `
-                    SELECT 
-                        id, 
-                        timestamp, 
-                        home_team, 
-                        away_team, 
-                        total_home, 
-                        total_away, 
-                        quarter1_home, 
-                        quarter1_away, 
-                        quarter2_home, 
-                        quarter2_away, 
-                        recommendation_type, 
-                        recommendation_value, 
-                        recommendation_text, 
-                        correct 
-                    FROM jogos 
-                    ORDER BY id
-                `;
-
-                const result = dbSQL.exec(query);
-                
-                if (result.length === 0) {
-                    console.warn('⚠️ Nenhum dado encontrado na tabela jogos');
+                if (!arquivoEncontrado) {
+                    console.warn('⚠️ Nenhum caminho funcionou para o arquivo SQLite');
+                    console.log('📊 Usando dados de exemplo...');
                     carregarDadosExemplo();
                     return false;
                 }
-
-                // Converter para array de objetos
-                const columns = result[0].columns;
-                const values = result[0].values;
-                
-                db.jogos = values.map(row => {
-                    const obj = {};
-                    columns.forEach((col, idx) => {
-                        obj[col] = row[idx];
-                    });
-                    return obj;
-                });
-
-                dbLoaded = true;
-                console.log(`✅ Dados carregados do SQLite: ${db.jogos.length} jogos`);
-                
-                // Salvar no localStorage como cache
-                try {
-                    localStorage.setItem('basketball_db_cache', JSON.stringify(db.jogos));
-                    localStorage.setItem('basketball_db_timestamp', Date.now().toString());
-                } catch(e) {}
-                
-                return true;
 
             } catch (error) {
                 console.error('❌ Erro ao carregar SQLite:', error.message);
@@ -700,6 +729,7 @@ Miami Heat
                 { id: 12, timestamp: '2026-06-17 20:00:00', home_team: 'San Antonio Spurs', away_team: 'Dallas Mavericks', total_home: 78, total_away: 74, quarter1_home: 38, quarter1_away: 35, quarter2_home: 40, quarter2_away: 39, recommendation_type: 'OVER', recommendation_value: '151.5', recommendation_text: '#G21_1_OVER - OVER 151.5', correct: 0 },
             ];
             dbLoaded = true;
+            atualizarStatusDB('error', 'Usando dados de exemplo');
             try {
                 localStorage.setItem('basketball_db_arquivo', JSON.stringify(db.jogos));
             } catch(e) {}
@@ -728,15 +758,15 @@ Miami Heat
 
             // Tenta carregar do arquivo SQLite
             const success = await carregarDadosSQLite();
-            if (success) {
-                atualizarStatusDB('loaded', `${db.jogos.length} jogos (SQLite)`);
-            } else {
-                atualizarStatusDB('error', 'Usando dados de exemplo');
+            if (!success) {
+                // Se falhou, usa dados de exemplo
+                carregarDadosExemplo();
             }
         }
 
         function atualizarStatusDB(status, texto) {
             const el = document.getElementById('dbStatus');
+            if (!el) return;
             el.textContent = `📊 ${texto}`;
             el.className = 'db-status';
             if (status === 'loaded') el.classList.add('loaded');
@@ -2817,5 +2847,3 @@ Miami Heat
     </script>
 </body>
 </html>
-
-
